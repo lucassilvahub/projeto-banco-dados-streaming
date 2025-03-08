@@ -3,8 +3,8 @@
 ## Tecnologias Utilizadas
 
 - **PostgreSQL (RDB)** – Para armazenar dados de usuários, assinaturas, pagamentos e preferências persistentes.  
-- **MongoDB (DB1)** – Responsável pelo armazenamento do catálogo de filmes, relacionamentos e blobs de exibição.  
-- **Redis (DB2)** – Utilizado para sessões, cache, leaderboards, rankings e variáveis dinâmicas.  
+- **MongoDB (DB1)** – Responsável pelo armazenamento do catálogo de filmes, relacionamentos entre filmes e blobs de exibição.  
+- **Redis (DB2)** – Utilizado para sessões, cache, rankings e variáveis dinâmicas.  
 - **Kafka (Mensageria)** – Comunicação assíncrona entre os serviços para garantir desacoplamento e escalabilidade.  
 - **Elasticsearch (Logs)** – Utilizado para monitoramento e auditoria, caso habilitado.
 
