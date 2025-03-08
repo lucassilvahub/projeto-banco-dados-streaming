@@ -56,13 +56,11 @@ Integrado para melhorar a performance do sistema. Suas principais aplicações i
 Facilita a comunicação entre os microserviços de forma assíncrona. Suas principais aplicações incluem:
   - **Distribuição de Eventos**: Envio de eventos para outros serviços, como criação de novos usuários, avaliações de filmes, ou alterações no catálogo.
   - **Comunicação Assíncrona**: Desacoplamento dos microserviços, garantindo que os sistemas se comuniquem sem bloquear uns aos outros.
-  - **Processamento em Tempo Real**: Envio de dados em tempo real para sistemas de processamento e análise.
 
 ## **Elasticsearch**  
 
 Utilizado para monitoramento, logs e auditoria. Suas aplicações incluem:
   - **Monitoramento**: Coleta de métricas de desempenho e estado do sistema para análise em tempo real.
   - **Logs de Atividades**: Armazenamento e análise de logs de eventos do sistema para detectar problemas ou falhas.
-  - **Auditoria**: Acompanhamento e registro das interações dos usuários e alterações nos dados para fins de auditoria e segurança.
 
 O objetivo é criar uma plataforma escalável e altamente disponível, onde diferentes tipos de dados são tratados com as tecnologias mais adequadas para cada caso de uso, permitindo uma performance otimizada e uma manutenção eficiente.
