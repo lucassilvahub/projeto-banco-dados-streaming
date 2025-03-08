@@ -6,7 +6,7 @@
 - **MongoDB (DB1)** – Responsável pelo armazenamento do catálogo de filmes, relacionamentos entre filmes e blobs de exibição.  
 - **Redis (DB2)** – Utilizado para sessões, cache, rankings e variáveis dinâmicas.  
 - **Kafka (Mensageria)** – Comunicação assíncrona entre os serviços para garantir desacoplamento e escalabilidade.  
-- **Elasticsearch (Logs)** – Utilizado para monitoramento e auditoria, caso habilitado.
+- **Elasticsearch (Logs)** – Utilizado para monitoramento, logs e auditoria.
 
 ## Arquitetura do Sistema
 
@@ -20,13 +20,6 @@
 - **Kafka** → Encaminha esses eventos para os serviços de processamento, garantindo a comunicação assíncrona.  
 - **S2** → Processa os eventos e armazena os dados nos bancos de dados apropriados.  
 - **S3** → Registra logs de atividades para auditoria e monitoramento.
-
-## 🔄 Fluxo de Operações
-
-1️⃣ **S1 gera eventos** – Quando um usuário se cadastra, avalia filmes ou atualiza informações no catálogo, eventos são gerados.  
-2️⃣ **Kafka distribui mensagens** – Esses eventos são enviados para os serviços correspondentes de forma assíncrona, através do Kafka.  
-3️⃣ **S2 processa e armazena** – Os serviços processam os dados e os armazenam nos bancos de dados ideais para cada tipo de informação.  
-4️⃣ **S3 registra logs** – Todos os eventos e atividades são registrados para monitoramento e auditoria através do Elasticsearch, se habilitado.
 
 ## 📜 Descrição do Projeto
 
