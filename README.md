@@ -1,63 +1,41 @@
-# 🎬 Plataforma de Streaming com Polyglot Persistence  
+# Plataforma de Streaming com Polyglot Persistence
 
-## 🚀 Tecnologias Utilizadas  
+## Tecnologias Utilizadas
 
-- **PostgreSQL (RDB)** – Usuários, assinaturas, pagamentos, preferências persistentes.  
-- **MongoDB (DB1)** – Catálogo de filmes, relacionamentos, blobs de exibição.  
-- **Redis (DB2)** – Sessões, cache, leaderboards, rankings e variáveis dinâmicas.  
-- **Kafka (Mensageria)** – Comunicação assíncrona entre serviços.  
-- **Elasticsearch (Opcional – Logs)** – Monitoramento e auditoria.  
+- **PostgreSQL (RDB)** – Para armazenar dados de usuários, assinaturas, pagamentos e preferências persistentes.  
+- **MongoDB (DB1)** – Responsável pelo armazenamento do catálogo de filmes, relacionamentos e blobs de exibição.  
+- **Redis (DB2)** – Utilizado para sessões, cache, leaderboards, rankings e variáveis dinâmicas.  
+- **Kafka (Mensageria)** – Comunicação assíncrona entre os serviços para garantir desacoplamento e escalabilidade.  
+- **Elasticsearch (Opcional – Logs)** – Utilizado para monitoramento e auditoria, caso habilitado.
 
-## 🏗 Arquitetura do Sistema  
+## Arquitetura do Sistema
 
-```
-                                          -------
-                                --------> |     |
-                                |         | DB1 |  (MongoDB)
-                                | ------- |     |
-                                | |       -------
-                                | v
-------      --------------     ------     -------
-|    |      |            | --> |    | --> |     |
-| S1 | ---> | mensageria |     | S2 |     | DB2 |  (Redis)
-|    |      |            | <-- |    | <-- |     |
-------      --------------     ------     -------
-  |            |                 ^ |
-  |   ------   |                 | |      -------
-  |   |    |   |                 | -----> |     |
-  --->| S3 |<--|                 |        | RDB |  (PostgreSQL)
-      |    |                     ---------|     |
-      ------                              -------
-```
-💡 **Componentes:**  
-✅ **S1** → Gera eventos (cadastro, avaliações, sessões).  
-✅ **Kafka** → Encaminha eventos para os serviços (S2).  
-✅ **S2** → Processa dados e os armazena nos bancos correspondentes.  
-✅ **S3** → Registra logs para auditoria e monitoramento.  
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/6ef74e6a-f50b-4034-b2b2-4281a47dff4e" width="600"/>
+</p>
 
-## 🔄 Fluxo de Operações  
-1️⃣ **S1 gera eventos** – Cadastro, novas avaliações, atualizações de catálogo.  
-2️⃣ **Kafka distribui mensagens** – Comunicação entre serviços de forma assíncrona.  
-3️⃣ **S2 processa e armazena** – Cada tipo de dado vai para seu banco ideal.  
-4️⃣ **S3 registra logs** – Histórico para análise e monitoramento.  
+### Componentes:
 
-## ▶ Como Executar  
-📌 **Pré-requisitos:**  
-✔ Docker + Docker Compose instalados.  
-✔ Containers configurados para PostgreSQL, MongoDB, Redis e Kafka.  
+- **S1** → Gera eventos como cadastro de usuários, avaliações de filmes e atualizações de sessões.  
+- **Kafka** → Encaminha esses eventos para os serviços de processamento, garantindo a comunicação assíncrona.  
+- **S2** → Processa os eventos e armazena os dados nos bancos de dados apropriados.  
+- **S3** → Registra logs de atividades para auditoria e monitoramento.
 
-📌 **Passos:**  
-1️⃣ Clone este repositório.  
-2️⃣ Ajuste as variáveis de ambiente (conexões com os bancos).  
-3️⃣ Inicie os containers/serviços (`docker-compose up`).  
-4️⃣ Rode **S1** para gerar eventos e acompanhar o fluxo de dados.  
+## 🔄 Fluxo de Operações
 
-📌 **Monitoramento:**  
-- Logs disponíveis via **Elasticsearch/Kibana** (se ativado).  
-- Banco de dados acessíveis via ferramentas como **pgAdmin, Mongo Compass e RedisInsight**.  
+1️⃣ **S1 gera eventos** – Quando um usuário se cadastra, avalia filmes ou atualiza informações no catálogo, eventos são gerados.  
+2️⃣ **Kafka distribui mensagens** – Esses eventos são enviados para os serviços correspondentes de forma assíncrona, através do Kafka.  
+3️⃣ **S2 processa e armazena** – Os serviços processam os dados e os armazenam nos bancos de dados ideais para cada tipo de informação.  
+4️⃣ **S3 registra logs** – Todos os eventos e atividades são registrados para monitoramento e auditoria através do Elasticsearch, se habilitado.
 
-## 🎯 Por que essa abordagem?  
-🔹 **PostgreSQL** → Segurança e consistência dos dados críticos.  
-🔹 **MongoDB** → Flexibilidade para um catálogo dinâmico.  
-🔹 **Redis** → Respostas ultra rápidas para cache e rankings.  
-🔹 **Kafka** → Comunicação escalável e eficiente.  
+## 📜 Descrição do Projeto
+
+Este projeto é uma plataforma de streaming de filmes e séries que utiliza a abordagem de **Polyglot Persistence**. O uso de diferentes tecnologias de banco de dados permite otimizar o armazenamento e processamento de dados, de acordo com suas características e necessidades.
+
+- **PostgreSQL** é utilizado para armazenar dados relacionais e críticos, como informações de usuários, assinaturas e pagamentos, garantindo consistência e segurança.  
+- **MongoDB** é empregado no gerenciamento do catálogo de filmes e séries, com flexibilidade para armazenar dados não estruturados, como informações dinâmicas e blobs de exibição.  
+- **Redis** é integrado para melhorar a performance do sistema, oferecendo armazenamento em cache de dados frequentemente acessados, como rankings e sessões ativas.  
+- **Kafka** facilita a comunicação entre os microserviços, permitindo que diferentes partes do sistema se comuniquem de forma escalável e assíncrona, sem sobrecarregar os componentes principais.  
+- **Elasticsearch** é opcional, mas pode ser utilizado para coletar e analisar logs de atividades do sistema, oferecendo insights para monitoramento e auditoria.
+
+O objetivo é criar uma plataforma escalável e altamente disponível, onde diferentes tipos de dados são tratados com as tecnologias mais adequadas para cada caso de uso, permitindo uma performance otimizada e uma manutenção eficiente.
