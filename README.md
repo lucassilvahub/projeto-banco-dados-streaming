@@ -11,7 +11,7 @@
 ## Arquitetura do Sistema
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/6ef74e6a-f50b-4034-b2b2-4281a47dff4e" width="600"/>
+  <img src="https://github.com/user-attachments/assets/20049402-7c0a-41d9-a1db-efb088342faa" width="720"/>
 </p>
 
 ### Componentes:
