@@ -6,7 +6,7 @@
 - **MongoDB (DB1)** – Responsável pelo armazenamento do catálogo de filmes, relacionamentos e blobs de exibição.  
 - **Redis (DB2)** – Utilizado para sessões, cache, leaderboards, rankings e variáveis dinâmicas.  
 - **Kafka (Mensageria)** – Comunicação assíncrona entre os serviços para garantir desacoplamento e escalabilidade.  
-- **Elasticsearch (Opcional – Logs)** – Utilizado para monitoramento e auditoria, caso habilitado.
+- **Elasticsearch (Logs)** – Utilizado para monitoramento e auditoria, caso habilitado.
 
 ## Arquitetura do Sistema
 
