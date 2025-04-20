@@ -1,0 +1,4 @@
+kafka-python==2.0.2           # Kafka Client
+psycopg2-binary==2.9.5        # PostgreSQL driver
+pymongo==4.3.3                # MongoDB driver
+redis==4.6.0                  # Redis driver
