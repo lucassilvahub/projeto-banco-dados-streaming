@@ -25,7 +25,7 @@ while producer is None and retry_count < max_retries:
         retry_count += 1
 
     if retry_count == max_retries:
-        print("[S1] ❌ Não foi possível conectar ao Kafka após várias tentativas.")
+        print("[S1] ❌ Não foi possível conectar ao Kafka após várias tentativas!")
         break
 
 @app.get("/")
