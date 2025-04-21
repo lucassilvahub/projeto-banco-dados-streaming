@@ -41,7 +41,7 @@ Este projeto é uma plataforma de streaming de filmes e séries que utiliza a ab
 - **S2** → Processa os eventos e armazena os dados nos bancos de dados apropriados.  
 - **S3** → Registra logs de atividades para auditoria e monitoramento.
 
-# Aprofundamento/detalhes de cada etapa
+# Aprofundamento detalhes de cada etapa
 
 ## **PostgreSQL**  
 
