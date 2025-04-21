@@ -2,6 +2,18 @@
 
 Este projeto é uma plataforma de streaming de filmes e séries que utiliza a abordagem de **Polyglot Persistence**. O uso de diferentes tecnologias de banco de dados permite otimizar o armazenamento e processamento de dados, de acordo com suas características e necessidades.
 
+---
+
+## **Índice de Navegação**
+[Arquitetura do Sistema](#arquitetura-do-sistema)
+[Tecnologias Utilizadas](#tecnologias-utilizadas)
+[Componentes](#componentes)
+[Aprofundamento de Cada Etapa](#aprofundamento-detalhes-de-cada-etapa)
+[Como Rodar o Projeto](#como-rodar-o-projeto)
+[Requisitos Mínimos](#requisitos-mínimos)
+
+---
+
 # Arquitetura do Sistema
 
 <br>
@@ -27,18 +39,6 @@ Este projeto é uma plataforma de streaming de filmes e séries que utiliza a ab
 - **Kafka** → Encaminha esses eventos para os serviços de processamento, garantindo a comunicação assíncrona.  
 - **S2** → Processa os eventos e armazena os dados nos bancos de dados apropriados.  
 - **S3** → Registra logs de atividades para auditoria e monitoramento.
-
----
-
-## **Índice de Navegação**
-- [Arquitetura do Sistema](#arquitetura-do-sistema)
-- [Tecnologias Utilizadas](#tecnologias-utilizadas)
-- [Componentes](#componentes)
-- [Aprofundamento de Cada Etapa](#aprofundamento-detalhes-de-cada-etapa)
-- [Como Rodar o Projeto](#como-rodar-o-projeto)
-- [Requisitos Mínimos](#requisitos-mínimos)
-
----
 
 # Aprofundamento/detalhes de cada etapa
 
