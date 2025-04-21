@@ -31,7 +31,7 @@ if retry_count == max_retries:
     print("[S1] ❌ Kafka não respondeu após várias tentativas.")
 
 # ========================
-# 🚀 Endpoints
+# 🚀 Endpoints - Que vão ser direcionadas para o POSTGRESS
 # ========================
 
 @app.get("/")

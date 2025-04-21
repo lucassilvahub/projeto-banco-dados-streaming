@@ -1,6 +1,38 @@
 version: '3.8'
 
 services:
+  # Serviço do PostgreSQL
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: streaming_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data # Volume para persistência dos dados
+
+  # Serviço do MongoDB
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db # Volume para persistência dos dados
+
+  # Serviço do Redis
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data # Volume para persistência dos dados Redis
+    command: [ "redis-server", "--appendonly", "yes" ] # Habilita persistência AOF no Redis
+
   kafka:
     image: bitnami/kafka:3.7.0
     ports:
@@ -39,3 +71,23 @@ services:
       - "8000:8000"
     volumes:
       - ./s1:/app
+
+  s2:
+    build: ./s2
+    container_name: s2
+    depends_on:
+      - kafka
+      - s1
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: streaming
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    volumes:
+      - ./s2:/app
+
+volumes:
+  pg_data: # Volume para o PostgreSQL
+  mongo_data: # Volume para o MongoDB
+  redis_data: # Volume para o Redis
