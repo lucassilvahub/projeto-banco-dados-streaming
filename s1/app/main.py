@@ -31,29 +31,25 @@ if retry_count == max_retries:
     print("[S1] ❌ Kafka não respondeu após várias tentativas.")
 
 # ========================
-# 📦 Banco fake em memória
-# ========================
-fake_users_db = {}
-
-# ========================
 # 🚀 Endpoints
 # ========================
 
 @app.get("/")
 def root():
-    return {"status": "ok", "msg": "API do S1 no ar"}
+    return {"status": "success", "msg": "API do S1 no ar"}
 
 @app.post("/usuarios")
 def criar_usuario():
-    user_id = random.randint(1000, 9999)
+    """
+    Gera um novo usuário fake e publica o evento no Kafka.
+    """
     user = {
-        "user_id": user_id,
+        "user_id": random.randint(1000, 9999),
         "nome": fake.name(),
         "email": fake.email(),
         "cpf": fake.cpf(),
         "data_criacao": datetime.utcnow().isoformat()
     }
-    fake_users_db[user_id] = user
 
     evento = {"event_type": "usuario_criado", **user}
     producer.send("user_events", value=evento)
@@ -63,9 +59,9 @@ def criar_usuario():
 
 @app.post("/usuarios/{user_id}/assinatura")
 def criar_assinatura(user_id: int):
-    if user_id not in fake_users_db:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-
+    """
+    Gera uma assinatura fake e publica o evento no Kafka.
+    """
     assinatura = {
         "user_id": user_id,
         "plano": random.choice(["Básico", "Padrão", "Premium"]),
@@ -81,9 +77,9 @@ def criar_assinatura(user_id: int):
 
 @app.post("/usuarios/{user_id}/pagamento")
 def registrar_pagamento(user_id: int):
-    if user_id not in fake_users_db:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-
+    """
+    Simula um pagamento e envia evento para o Kafka.
+    """
     pagamento = {
         "user_id": user_id,
         "valor": round(random.uniform(19.90, 49.90), 2),
@@ -98,17 +94,15 @@ def registrar_pagamento(user_id: int):
 
     return {"mensagem": "Pagamento simulado", "pagamento": pagamento}
 
-@app.put("/usuarios/{user_id}/config")
+@app.post("/usuarios/{user_id}/config")
 def atualizar_config(user_id: int, idioma: str = "pt-BR", notificacoes: bool = True):
-    if user_id not in fake_users_db:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-
+    """
+    Atualiza preferências do usuário e envia o evento.
+    """
     preferencias = {
         "idioma": idioma,
         "notificacoes": notificacoes
     }
-
-    fake_users_db[user_id]["preferencias"] = preferencias
 
     evento = {
         "event_type": "config_atualizada",
