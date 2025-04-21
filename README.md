@@ -5,12 +5,13 @@ Este projeto é uma plataforma de streaming de filmes e séries que utiliza a ab
 ---
 
 ## **Índice de Navegação**
-[Arquitetura do Sistema](#arquitetura-do-sistema)
-[Tecnologias Utilizadas](#tecnologias-utilizadas)
-[Componentes](#componentes)
-[Aprofundamento de Cada Etapa](#aprofundamento-detalhes-de-cada-etapa)
-[Como Rodar o Projeto](#como-rodar-o-projeto)
-[Requisitos Mínimos](#requisitos-mínimos)
+
+1. [Arquitetura do Sistema](#arquitetura-do-sistema)
+2. [Tecnologias Utilizadas](#tecnologias-utilizadas)
+3. [Componentes](#componentes)
+4. [Aprofundamento de Cada Etapa](#aprofundamento-detalhes-de-cada-etapa)
+5. [Como Rodar o Projeto](#como-rodar-o-projeto)
+6. [Requisitos Mínimos](#requisitos-mínimos)
 
 ---
 
