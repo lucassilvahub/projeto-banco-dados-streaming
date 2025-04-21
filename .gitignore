@@ -1,0 +1,59 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.so
+
+# Virtual environments
+env/
+venv/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Test/output
+htmlcov/
+coverage.xml
+*.cover
+*.log
+*.tmp
+*.out
+
+# Docker
+**/*.pid
+*.seed
+*.bak
+docker-compose.override.yml
+
+# Envs/secrets
+.env
+.env.*
+
+# Kafka state (se estiver persistindo algo local)
+kafka-logs/
+zookeeper-data/
+
+# Python dependency files
+pip-log.txt
+pip-delete-this-directory.txt
+
+# MyPy / Pylint / Pyright / Ruff
+.mypy_cache/
+.pyright/
+ruff_cache/
+pylint-report.txt
+
+# FastAPI static/docs
+static/
+docs/

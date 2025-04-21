@@ -18,7 +18,8 @@ Este projeto é uma plataforma de streaming de filmes e séries que utiliza a ab
 - **MongoDB (DB1)** – Responsável pelo armazenamento do catálogo de filmes, relacionamentos entre filmes e blobs de exibição.  
 - **Redis (DB2)** – Utilizado para sessões, cache, rankings e variáveis dinâmicas.  
 - **Kafka (Mensageria)** – Comunicação assíncrona entre os serviços para garantir desacoplamento e escalabilidade.  
-- **Elasticsearch (Logs)** – Utilizado para monitoramento, logs e auditoria.
+- **Elasticsearch (Logs)** – Utilizado para monitoramento, logs e auditoria.  
+- **FastAPI (API)** – Framework leve e moderno utilizado para a criação das APIs do projeto. Possui documentação interativa disponível em `/docs`.
 
 ## Componentes:
 
@@ -63,4 +64,75 @@ Utilizado para monitoramento, logs e auditoria. Suas aplicações incluem:
   - **Monitoramento**: Coleta de métricas de desempenho e estado do sistema para análise em tempo real.
   - **Logs de Atividades**: Armazenamento e análise de logs de eventos do sistema para detectar problemas ou falhas.
 
-O objetivo é criar uma plataforma escalável e altamente disponível, onde diferentes tipos de dados são tratados com as tecnologias mais adequadas para cada caso de uso, permitindo uma performance otimizada e uma manutenção eficiente.
+## **FastAPI**
+
+O FastAPI é utilizado para a criação da API RESTful do sistema. A API fornece endpoints para:
+  - Cadastro de usuários, assinaturas e pagamentos.
+  - Configurações de preferências do usuário.
+  - Integração com Kafka para envio de eventos para outros sistemas.
+  
+A documentação interativa da API está disponível em **`/docs`**. Você pode acessar essa documentação diretamente em seu navegador após iniciar a aplicação FastAPI. A interface é gerada automaticamente e fornece uma maneira prática de testar a API e visualizar os endpoints disponíveis.
+
+# Como Rodar o Projeto
+
+Este projeto utiliza **Docker** e **Docker Compose** para facilitar a execução de todos os serviços. Siga os passos abaixo para rodar o projeto localmente:
+
+1. **Clone o repositório:**
+   ```bash
+   git clone https://github.com/seu-usuario/streaming-app.git
+   cd streaming-app
+   ```
+
+2. **Certifique-se de que o Docker e o Docker Compose estão instalados:**
+   - Você pode verificar se o Docker está instalado com:
+     ```bash
+     docker --version
+     ```
+   - Verifique se o Docker Compose está instalado com:
+     ```bash
+     docker-compose --version
+     ```
+
+   Caso você ainda não tenha o Docker e o Docker Compose instalados, siga as instruções nas respectivas documentações:
+   - [Instalar Docker](https://docs.docker.com/get-docker/)
+   - [Instalar Docker Compose](https://docs.docker.com/compose/install/)
+
+3. **Configure o ambiente:**
+   O arquivo `docker-compose.yml` já contém as configurações necessárias para a execução do projeto. Caso precise ajustar variáveis de ambiente (como credenciais ou configurações específicas), você pode fazer isso editando diretamente o arquivo `docker-compose.yml`.
+
+4. **Suba os containers com o Docker Compose:**
+   Dentro da pasta do projeto, execute o comando abaixo para rodar os containers do Docker:
+   ```bash
+   docker-compose up --build
+   ```
+
+   Esse comando irá construir as imagens e iniciar todos os containers definidos no arquivo `docker-compose.yml`.
+
+5. **Acesse a API:**
+   Após os containers estarem em execução, você pode acessar a API no seguinte endereço:
+   ```
+   http://localhost:8000
+   ```
+
+   Além disso, a documentação interativa da API estará disponível em:
+   ```
+   http://localhost:8000/docs
+   ```
+
+6. **Verifique os logs (opcional):**
+   Para verificar os logs do projeto enquanto ele está rodando, use o comando:
+   ```bash
+   docker-compose logs -f
+   ```
+
+7. **Parar os containers:**
+   Quando terminar de utilizar o projeto, você pode parar todos os containers com:
+   ```bash
+   docker-compose down
+   ```
+
+# Requisitos Mínimos
+
+- **Docker**: Versão 20.10 ou superior
+- **Docker Compose**: Versão 1.27 ou superior
+- **Sistema Operacional**: Linux, macOS ou Windows (com Docker Desktop)
