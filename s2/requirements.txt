@@ -1,3 +1,3 @@
 asyncpg==0.25.0          # Cliente assíncrono para PostgreSQL
-aiokafka==0.8.0          # Cliente assíncrono para Kafka
-asyncio==3.4.3           # Biblioteca para execução assíncrona (geralmente já inclusa no Python 3.7+)
+aiokafka==0.8.1
+kafka-python==1.4.7

@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+
   # Serviço do PostgreSQL
   postgres:
     image: postgres:latest
@@ -50,16 +51,6 @@ services:
       - ALLOW_PLAINTEXT_LISTENER=yes
       - KAFKA_LOG_LEVEL=ERROR
 
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    ports:
-      - "8080:8080"
-    environment:
-      - KAFKA_CLUSTERS_0_NAME=local
-      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
-    depends_on:
-      - kafka
-
   s1:
     build: ./s1
     container_name: s1
@@ -80,12 +71,28 @@ services:
       - s1
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      POSTGRES_HOST: postgres
-      POSTGRES_DB: streaming
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: streaming_db
     volumes:
       - ./s2:/app
+
+  # UI
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8081:8080
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+    depends_on:
+      - kafka
 
 volumes:
   pg_data: # Volume para o PostgreSQL
