@@ -1,12 +1,15 @@
-from fastapi import FastAPI, HTTPException
-from kafka import KafkaProducer
+from fastapi import FastAPI, HTTPException, BackgroundTasks
+from kafka import KafkaProducer, KafkaConsumer
 from kafka.errors import NoBrokersAvailable
 from faker import Faker
 from datetime import datetime, timedelta
-import time, json, random
+import time, json, random, uuid, threading
 
 app = FastAPI()
 fake = Faker("pt_BR")
+
+# Dicionário para armazenar as respostas
+response_storage = {}
 
 # ========================
 # 🔌 Kafka Producer Setup
@@ -30,8 +33,55 @@ while producer is None and retry_count < max_retries:
 if retry_count == max_retries:
     print("[S1] ❌ Kafka não respondeu após várias tentativas.")
 
+# Função para consumir respostas
+def listen_for_responses():
+    consumer = KafkaConsumer(
+        'response_events',
+        bootstrap_servers="kafka:9092",
+        value_deserializer=lambda v: json.loads(v.decode("utf-8")),
+        group_id="s1_response_consumer"
+    )
+    
+    for message in consumer:
+        response = message.value
+        if 'correlation_id' in response:
+            correlation_id = response['correlation_id']
+            response_storage[correlation_id] = response
+            print(f"[S1] ✅ Resposta recebida para correlation_id: {correlation_id}")
+
+# Iniciar o consumidor em uma thread separada
+response_thread = threading.Thread(target=listen_for_responses, daemon=True)
+response_thread.start()
+
+# Função para enviar evento para o Kafka com correlation_id
+def send_event(topic, event_type, payload):
+    correlation_id = str(uuid.uuid4())
+    timestamp = datetime.utcnow().isoformat()
+    
+    evento = {
+        "event_type": event_type,
+        "correlation_id": correlation_id,
+        "timestamp": timestamp,
+        "source": "s1",
+        "target": "s2",
+        **payload
+    }
+    
+    producer.send(topic, value=evento)
+    producer.flush()
+    
+    return correlation_id
+
+# Função para verificar status da resposta
+@app.get("/status/{correlation_id}")
+def check_status(correlation_id: str):
+    if correlation_id in response_storage:
+        return response_storage[correlation_id]
+    else:
+        return {"status": "pendente", "message": "Processamento em andamento"}
+
 # ========================
-# 🚀 Endpoints - Que vão ser direcionadas para o POSTGRESS
+# 🚀 Endpoints
 # ========================
 
 @app.get("/")
@@ -51,11 +101,14 @@ def criar_usuario():
         "data_criacao": datetime.utcnow().isoformat()
     }
 
-    evento = {"event_type": "usuario_criado", **user}
-    producer.send("user_events", value=evento)
-    producer.flush()
-
-    return {"mensagem": "Usuário criado com sucesso", "usuario": user}
+    correlation_id = send_event("user_events", "usuario_criado", user)
+    
+    return {
+        "mensagem": "Solicitação de criação de usuário enviada",
+        "usuario": user,
+        "correlation_id": correlation_id,
+        "status_url": f"/status/{correlation_id}"
+    }
 
 @app.post("/usuarios/{user_id}/assinatura")
 def criar_assinatura(user_id: int):
@@ -69,11 +122,14 @@ def criar_assinatura(user_id: int):
         "fim": (datetime.utcnow() + timedelta(days=30)).date().isoformat()
     }
 
-    evento = {"event_type": "assinatura_criada", **assinatura}
-    producer.send("user_events", value=evento)
-    producer.flush()
-
-    return {"mensagem": "Assinatura registrada", "assinatura": assinatura}
+    correlation_id = send_event("user_events", "assinatura_criada", assinatura)
+    
+    return {
+        "mensagem": "Solicitação de assinatura enviada",
+        "assinatura": assinatura,
+        "correlation_id": correlation_id,
+        "status_url": f"/status/{correlation_id}"
+    }
 
 @app.post("/usuarios/{user_id}/pagamento")
 def registrar_pagamento(user_id: int):
@@ -88,11 +144,14 @@ def registrar_pagamento(user_id: int):
         "data_pagamento": datetime.utcnow().isoformat()
     }
 
-    evento = {"event_type": "pagamento_realizado", **pagamento}
-    producer.send("user_events", value=evento)
-    producer.flush()
-
-    return {"mensagem": "Pagamento simulado", "pagamento": pagamento}
+    correlation_id = send_event("user_events", "pagamento_realizado", pagamento)
+    
+    return {
+        "mensagem": "Solicitação de pagamento enviada",
+        "pagamento": pagamento,
+        "correlation_id": correlation_id,
+        "status_url": f"/status/{correlation_id}"
+    }
 
 @app.post("/usuarios/{user_id}/config")
 def atualizar_config(user_id: int, idioma: str = "pt-BR", notificacoes: bool = True):
@@ -105,12 +164,20 @@ def atualizar_config(user_id: int, idioma: str = "pt-BR", notificacoes: bool = T
     }
 
     evento = {
-        "event_type": "config_atualizada",
         "user_id": user_id,
         "preferencias": preferencias
     }
 
-    producer.send("user_events", value=evento)
-    producer.flush()
+    correlation_id = send_event("user_events", "config_atualizada", evento)
+    
+    return {
+        "mensagem": "Solicitação de atualização de configurações enviada",
+        "config": preferencias,
+        "correlation_id": correlation_id,
+        "status_url": f"/status/{correlation_id}"
+    }
 
-    return {"mensagem": "Configurações atualizadas", "config": preferencias}
+# Iniciar a API com uvicorn
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

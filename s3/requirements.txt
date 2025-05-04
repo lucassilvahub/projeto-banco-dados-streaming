@@ -1,2 +1,4 @@
-kafka-python==2.0.2           # Kafka Client
-elasticsearch==8.9.0          # Elasticsearch client
+aiokafka==0.8.1
+elasticsearch==8.10.0
+python-dotenv==1.0.0
+aiohttp==3.9.1
