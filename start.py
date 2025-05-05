@@ -47,11 +47,8 @@ def subir_containers():
 
 
 def abrir_interfaces_web():
-    print("🌐 Abrindo Adminer e Kafka UI...")
-    abrir_navegador(
-        "http://localhost:8081/?pgsql=postgres&server=postgres&username=user&db=streaming_db&password=password"
-    )
-    abrir_navegador("http://localhost:8080")  # Kafka UI
+    print("🌐 Abrindo dashboard...")
+    abrir_navegador("http://localhost:8089")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import asyncio
 import json
 import asyncpg
-from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+from aiokafka import AIOKafkaConsumer
 from datetime import datetime
 import logging
 
@@ -9,195 +9,234 @@ import logging
 # 🛠️ Configurações
 # ========================
 KAFKA_BROKER = "kafka:9092"
-TOPICO_ENTRADA = "user_events"
-TOPICO_SAIDA = "response_events"
-POSTGRES_DSN = "postgresql://user:password@postgres:5432/streaming_db"
+TOPICO = "user_events"
+POSTGRES_DSN = "postgresql://user:password@postgres:5432/streaming_db"  # Ajuste conforme seu docker-compose
 
 # ========================
-# 📥 Consumer e Producer Kafka
+# 📥 Consumer Kafka
 # ========================
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def enviar_resposta(producer, evento_original, status, mensagem=None):
-    """Envia uma resposta para o evento original"""
-    resposta = {
-        "event_type": "response",
-        "correlation_id": evento_original.get("correlation_id"),
-        "status": status,
-        "timestamp": datetime.utcnow().isoformat(),
-        "source": "s2",
-        "target": "s1",
-        "original_event_type": evento_original.get("event_type"),
-        "message": mensagem
-    }
-    
-    await producer.send_and_wait(TOPICO_SAIDA, value=resposta)
-    logger.info(f"✅ Resposta enviada para correlation_id: {resposta['correlation_id']}")
 
-async def processar_evento(conn, producer, evento):
+def parse_datetime(dt_str):
+    """Converte string ISO para objeto datetime."""
+    if isinstance(dt_str, str):
+        return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+    return dt_str
+
+
+async def processar_evento(conn, evento):
     tipo = evento.get("event_type")
-    status = "success"
-    mensagem = None
 
-    try:
-        if tipo == "usuario_criado":
-            await conn.execute("""
-                INSERT INTO usuarios (user_id, nome, email, cpf, data_criacao)
-                VALUES ($1, $2, $3, $4, $5)
-            """, evento["user_id"], evento["nome"], evento["email"], evento["cpf"], evento["data_criacao"])
-            logger.info("👤 Novo usuário salvo!")
-            mensagem = "Usuário criado com sucesso"
+    if tipo == "criar_usuario":
+        # Converter a string ISO para datetime
 
-        elif tipo == "assinatura_criada":
+        await conn.execute(
+            """
+            INSERT INTO usuarios (user_id, nome, email, cpf, data_criacao)
+            VALUES ($1, $2, $3, $4, $5)
+        """,
+            evento["user_id"],
+            evento["nome"],
+            evento["email"],
+            evento["cpf"],
+            evento["data_criacao"],
+        )
+        logger.info("👤 Novo usuário salvo!")
+
+    elif tipo == "atualizar_assinatura":
+        # Converter as strings de data para objetos datetime
+        inicio = parse_datetime(evento["inicio"])
+        fim = parse_datetime(evento["fim"])
+
+        # Verificar se já existe assinatura para este usuário
+        assinatura_existente = await conn.fetchrow(
+            "SELECT * FROM assinaturas WHERE user_id = $1", 
+            evento["user_id"]
+        )
+        
+        if assinatura_existente:
+            # Se existir, atualiza em vez de inserir
+            await conn.execute(
+                """
+                UPDATE assinaturas 
+                SET plano = $2, inicio = $3, fim = $4
+                WHERE user_id = $1
+                """,
+                evento["user_id"],
+                evento["plano"],
+                inicio,
+                fim,
+            )
+            logger.info("📄 Assinatura atualizada!")
+        else:
+            # Se não existir, insere novo registro
             await conn.execute(
                 """
                 INSERT INTO assinaturas (user_id, plano, inicio, fim)
                 VALUES ($1, $2, $3, $4)
-            """,
+                """,
                 evento["user_id"],
                 evento["plano"],
-                evento["inicio"],
-                evento["fim"],
+                inicio,
+                fim,
             )
-            logger.info("📄 Assinatura salva!")
-            mensagem = "Assinatura criada com sucesso"
+            logger.info("📄 Nova assinatura criada!")
 
-        elif tipo == "pagamento_realizado":
+    elif tipo == "atualizar_config":
+        preferencias = evento["preferencias"]
+        
+        # Verificar se já existem preferências para este usuário
+        config_existente = await conn.fetchrow(
+            "SELECT * FROM preferencias WHERE user_id = $1", 
+            evento["user_id"]
+        )
+        
+        if config_existente:
+            # Se existir, atualiza em vez de inserir
             await conn.execute(
                 """
-                INSERT INTO pagamentos (user_id, valor, forma_pagamento, status, data_pagamento)
-                VALUES ($1, $2, $3, $4, $5)
-            """,
-                evento["user_id"],
-                evento["valor"],
-                evento["forma_pagamento"],
-                evento["status"],
-                evento["data_pagamento"],
-            )
-            logger.info("💸 Pagamento salvo!")
-            mensagem = "Pagamento registrado com sucesso"
-
-        elif tipo == "config_atualizada":
-            preferencias = evento["preferencias"]
-            await conn.execute(
-                """
-                INSERT INTO preferencias (user_id, idioma, notificacoes)
-                VALUES ($1, $2, $3)
-                ON CONFLICT (user_id) DO UPDATE
+                UPDATE preferencias 
                 SET idioma = $2, notificacoes = $3
-            """,
+                WHERE user_id = $1
+                """,
                 evento["user_id"],
                 preferencias["idioma"],
                 preferencias["notificacoes"],
             )
-            logger.info("⚙️ Preferências salvas!")
-            mensagem = "Configurações atualizadas com sucesso"
-
+            logger.info("⚙️ Preferências atualizadas!")
         else:
-            logger.warning(f"⚠️ Tipo de evento não reconhecido: {tipo}")
-            status = "error"
-            mensagem = f"Tipo de evento não reconhecido: {tipo}"
+            # Se não existir, insere novo registro
+            await conn.execute(
+                """
+                INSERT INTO preferencias (user_id, idioma, notificacoes)
+                VALUES ($1, $2, $3)
+                """,
+                evento["user_id"],
+                preferencias["idioma"],
+                preferencias["notificacoes"],
+            )
+            logger.info("⚙️ Novas preferências salvas!")
 
-    except Exception as e:
-        logger.error(f"❌ Erro ao processar evento: {e}")
-        status = "error"
-        mensagem = f"Erro ao processar evento: {str(e)}"
-    
-    # Enviar resposta
-    if "correlation_id" in evento:
-        await enviar_resposta(producer, evento, status, mensagem)
+    elif tipo == "pagamento_realizado":
+        # Converter a string de data para objeto datetime
+        data_pagamento = parse_datetime(evento["data_pagamento"])
+
+        await conn.execute(
+            """
+            INSERT INTO pagamentos (user_id, valor, forma_pagamento, status, data_pagamento)
+            VALUES ($1, $2, $3, $4, $5)
+        """,
+            evento["user_id"],
+            evento["valor"],
+            evento["forma_pagamento"],
+            evento["status"],
+            data_pagamento,
+        )
+        logger.info("💸 Pagamento salvo!")
+
     else:
-        logger.warning("⚠️ Evento sem correlation_id, resposta não enviada")
+        logger.warning(f"⚠️ Tipo de evento não reconhecido: {tipo}")
+
 
 async def consumir():
-    logger.info("🔄 Conectando ao PostgreSQL...")
-
     try:
-        # Conectar ao PostgreSQL
+        # Tenta fazer a conexão com o PostgreSQL
         conn = await asyncpg.connect(POSTGRES_DSN)
         logger.info("✅ Conexão com o PostgreSQL bem-sucedida!")
 
-        # Criar tabelas se não existirem
-        await conn.execute('''
-            CREATE TABLE IF NOT EXISTS usuarios (
-                user_id INTEGER PRIMARY KEY,
-                nome TEXT NOT NULL,
-                email TEXT NOT NULL,
-                cpf TEXT NOT NULL,
-                data_criacao TIMESTAMP NOT NULL
-            )
-        ''')
-        
-        await conn.execute('''
-            CREATE TABLE IF NOT EXISTS assinaturas (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                plano TEXT NOT NULL,
-                inicio DATE NOT NULL,
-                fim DATE NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES usuarios(user_id)
-            )
-        ''')
-        
-        await conn.execute('''
-            CREATE TABLE IF NOT EXISTS pagamentos (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                valor NUMERIC(10,2) NOT NULL,
-                forma_pagamento TEXT NOT NULL,
-                status TEXT NOT NULL,
-                data_pagamento TIMESTAMP NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES usuarios(user_id)
-            )
-        ''')
-        
-        await conn.execute('''
-            CREATE TABLE IF NOT EXISTS preferencias (
-                user_id INTEGER PRIMARY KEY,
-                idioma TEXT NOT NULL,
-                notificacoes BOOLEAN NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES usuarios(user_id)
-            )
-        ''')
+        # Criação das tabelas caso não existam
+        await criar_tabelas(conn)
 
     except Exception as e:
         logger.error(f"❌ Erro ao conectar ao PostgreSQL: {e}")
-        return
+        return  # Se falhar, não continua o consumo do Kafka
 
-    logger.info("🔌 Iniciando consumer e producer Kafka...")
-    
+    logger.info("🔌 Iniciando consumer Kafka...")
     consumer = AIOKafkaConsumer(
-        TOPICO_ENTRADA,
+        TOPICO,
         bootstrap_servers=KAFKA_BROKER,
         value_deserializer=lambda v: json.loads(v.decode("utf-8")),
         group_id="s2_consumer_group",
     )
-    
-    producer = AIOKafkaProducer(
-        bootstrap_servers=KAFKA_BROKER,
-        value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-    )
 
-    # Iniciar consumer e producer
+    # Iniciando o consumo de mensagens
     await consumer.start()
-    await producer.start()
 
     try:
         logger.info("📡 Aguardando mensagens...")
         async for msg in consumer:
             evento = msg.value
             try:
-                await processar_evento(conn, producer, evento)
+                await processar_evento(conn, evento)
             except Exception as e:
                 logger.error(f"❌ Erro ao processar evento: {e}")
-                if "correlation_id" in evento:
-                    await enviar_resposta(producer, evento, "error", str(e))
 
     finally:
         await consumer.stop()
-        await producer.stop()
         await conn.close()
+
+
+async def criar_tabelas(conn):
+    """Cria as tabelas necessárias se não existirem."""
+    logger.info("🏗️ Verificando/criando tabelas...")
+
+    # Tabela de usuários
+    await conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER UNIQUE NOT NULL,
+            nome VARCHAR(100) NOT NULL,
+            email VARCHAR(100) UNIQUE NOT NULL,
+            cpf VARCHAR(14) UNIQUE NOT NULL,
+            data_criacao TIMESTAMP NOT NULL
+        )
+    """
+    )
+
+    # Tabela de assinaturas
+    await conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS assinaturas (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER UNIQUE NOT NULL,
+            plano VARCHAR(20) NOT NULL,
+            inicio DATE NOT NULL,
+            fim DATE NOT NULL
+        )
+    """
+    )
+
+    # Tabela de pagamentos
+    await conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS pagamentos (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            valor NUMERIC(10, 2) NOT NULL,
+            forma_pagamento VARCHAR(20) NOT NULL,
+            status VARCHAR(20) NOT NULL,
+            data_pagamento TIMESTAMP NOT NULL
+        )
+    """
+    )
+
+    # Tabela de preferências
+    await conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS preferencias (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER UNIQUE NOT NULL,
+            idioma VARCHAR(10) NOT NULL,
+            notificacoes BOOLEAN NOT NULL
+        )
+    """
+    )
+
+    logger.info("✅ Tabelas verificadas/criadas com sucesso!")
+
 
 if __name__ == "__main__":
     asyncio.run(consumir())

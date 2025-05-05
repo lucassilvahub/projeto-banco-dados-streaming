@@ -101,7 +101,7 @@ def criar_usuario():
         "data_criacao": datetime.utcnow().isoformat()
     }
 
-    correlation_id = send_event("user_events", "usuario_criado", user)
+    correlation_id = send_event("user_events", "criar_usuario", user)
     
     return {
         "mensagem": "Solicitação de criação de usuário enviada",
@@ -122,7 +122,7 @@ def criar_assinatura(user_id: int):
         "fim": (datetime.utcnow() + timedelta(days=30)).date().isoformat()
     }
 
-    correlation_id = send_event("user_events", "assinatura_criada", assinatura)
+    correlation_id = send_event("user_events", "atualizar_assinatura", assinatura)
     
     return {
         "mensagem": "Solicitação de assinatura enviada",
@@ -168,7 +168,7 @@ def atualizar_config(user_id: int, idioma: str = "pt-BR", notificacoes: bool = T
         "preferencias": preferencias
     }
 
-    correlation_id = send_event("user_events", "config_atualizada", evento)
+    correlation_id = send_event("user_events", "atualizar_config", evento)
     
     return {
         "mensagem": "Solicitação de atualização de configurações enviada",
