@@ -3,9 +3,18 @@ from kafka import KafkaProducer, KafkaConsumer
 from kafka.errors import NoBrokersAvailable
 from faker import Faker
 from datetime import datetime, timedelta
-import time, json, random, uuid, threading
+import time
+import json
+import random
+import uuid
+import threading
+import os
 
-app = FastAPI()
+app = FastAPI(
+    title="Streaming Platform API",
+    description="API para gerenciamento de usuários e assinaturas da plataforma de streaming",
+    version="1.0.0"
+)
 fake = Faker("pt_BR")
 
 # Dicionário para armazenar as respostas
@@ -17,11 +26,12 @@ response_storage = {}
 producer = None
 max_retries = 10
 retry_count = 0
+kafka_server = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 
 while producer is None and retry_count < max_retries:
     try:
         producer = KafkaProducer(
-            bootstrap_servers="kafka:9092",
+            bootstrap_servers=kafka_server,
             value_serializer=lambda v: json.dumps(v).encode("utf-8")
         )
         print("[S1] ✅ KafkaProducer conectado!")
@@ -35,19 +45,26 @@ if retry_count == max_retries:
 
 # Função para consumir respostas
 def listen_for_responses():
-    consumer = KafkaConsumer(
-        'response_events',
-        bootstrap_servers="kafka:9092",
-        value_deserializer=lambda v: json.loads(v.decode("utf-8")),
-        group_id="s1_response_consumer"
-    )
-    
-    for message in consumer:
-        response = message.value
-        if 'correlation_id' in response:
-            correlation_id = response['correlation_id']
-            response_storage[correlation_id] = response
-            print(f"[S1] ✅ Resposta recebida para correlation_id: {correlation_id}")
+    """Thread para ouvir as respostas do serviço S2 via Kafka"""
+    try:
+        consumer = KafkaConsumer(
+            'response_events',
+            bootstrap_servers=kafka_server,
+            value_deserializer=lambda v: json.loads(v.decode("utf-8")),
+            group_id="s1_response_consumer",
+            auto_offset_reset="latest"
+        )
+        
+        print("[S1] ✅ KafkaConsumer iniciado com sucesso!")
+        
+        for message in consumer:
+            response = message.value
+            if 'correlation_id' in response:
+                correlation_id = response['correlation_id']
+                response_storage[correlation_id] = response
+                print(f"[S1] ✅ Resposta recebida para correlation_id: {correlation_id}")
+    except Exception as e:
+        print(f"[S1] ❌ Erro no consumer: {e}")
 
 # Iniciar o consumidor em uma thread separada
 response_thread = threading.Thread(target=listen_for_responses, daemon=True)
@@ -55,6 +72,7 @@ response_thread.start()
 
 # Função para enviar evento para o Kafka com correlation_id
 def send_event(topic, event_type, payload):
+    """Envia um evento para o Kafka com um correlation_id para rastreamento"""
     correlation_id = str(uuid.uuid4())
     timestamp = datetime.utcnow().isoformat()
     
@@ -72,21 +90,22 @@ def send_event(topic, event_type, payload):
     
     return correlation_id
 
-# Função para verificar status da resposta
-@app.get("/status/{correlation_id}")
-def check_status(correlation_id: str):
-    if correlation_id in response_storage:
-        return response_storage[correlation_id]
-    else:
-        return {"status": "pendente", "message": "Processamento em andamento"}
-
 # ========================
 # 🚀 Endpoints
 # ========================
 
 @app.get("/")
 def root():
-    return {"status": "success", "msg": "API do S1 no ar"}
+    """Endpoint raiz para verificar se a API está no ar"""
+    return {"status": "success", "msg": "API do Streaming Platform no ar", "version": "1.0.0"}
+
+@app.get("/status/{correlation_id}")
+def check_status(correlation_id: str):
+    """Verifica o status de uma operação pelo correlation_id"""
+    if correlation_id in response_storage:
+        return response_storage[correlation_id]
+    else:
+        return {"status": "pendente", "message": "Processamento em andamento"}
 
 @app.post("/usuarios")
 def criar_usuario():
@@ -177,7 +196,18 @@ def atualizar_config(user_id: int, idioma: str = "pt-BR", notificacoes: bool = T
         "status_url": f"/status/{correlation_id}"
     }
 
+# Endpoint para fins de teste/debug
+@app.get("/health")
+def health_check():
+    """Endpoint para verificação de saúde do serviço"""
+    return {
+        "service": "s1",
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "kafka_connected": producer is not None
+    }
+
 # Iniciar a API com uvicorn
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

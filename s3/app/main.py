@@ -15,13 +15,13 @@ ES_HOST = os.getenv("ELASTICSEARCH_HOST", "elasticsearch:9200")
 LOG_FILE = "system_logs.json"
 
 # ========================
-# 📥 Consumer Kafka
+# 📥 Configuração de Logs
 # ========================
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("s3")
 
 async def log_evento(es, evento, origem):
     """Registra o evento no Elasticsearch ou em arquivo local"""

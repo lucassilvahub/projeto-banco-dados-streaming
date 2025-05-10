@@ -2,6 +2,7 @@ import subprocess
 import time
 import webbrowser
 import platform
+import os
 
 # Caminho opcional para o Google Chrome (dependendo do sistema)
 CHROME_PATH = {
@@ -34,6 +35,42 @@ def parar_containers():
         print("❌ Erro ao parar os containers.")
 
 
+def verificar_docker():
+    """Verifica se o Docker e Docker Compose estão instalados"""
+    try:
+        docker_version = subprocess.run(["docker", "--version"], capture_output=True, text=True)
+        compose_version = subprocess.run(["docker-compose", "--version"], capture_output=True, text=True)
+        
+        if docker_version.returncode == 0 and compose_version.returncode == 0:
+            print("✅ Docker e Docker Compose encontrados.")
+            return True
+        else:
+            print("❌ Docker ou Docker Compose não encontrados. Instale-os antes de continuar.")
+            return False
+    except FileNotFoundError:
+        print("❌ Docker ou Docker Compose não encontrados. Instale-os antes de continuar.")
+        return False
+
+
+def verificar_e_criar_diretorios():
+    """Verifica e cria os diretórios necessários para o projeto"""
+    print("🔍 Verificando estrutura de diretórios...")
+    
+    diretorios = [
+        "s1/app", 
+        "s2/app", 
+        "s3/app", 
+        "dashboard/html"
+    ]
+    
+    for diretorio in diretorios:
+        if not os.path.exists(diretorio):
+            print(f"📁 Criando diretório: {diretorio}")
+            os.makedirs(diretorio, exist_ok=True)
+    
+    print("✅ Estrutura de diretórios verificada/criada com sucesso!")
+
+
 def subir_containers():
     try:
         print("🔧 Subindo containers com Docker Compose...")
@@ -52,12 +89,16 @@ def abrir_interfaces_web():
 
 
 if __name__ == "__main__":
+    if not verificar_docker():
+        exit(1)
+    
+    verificar_e_criar_diretorios()
     parar_containers()  # Parar containers antes de subir novos
     success = subir_containers()
 
     if success:
         print("⏳ Aguardando containers subirem...")
-        time.sleep(8)
+        time.sleep(15)  # Tempo maior para garantir que todos os serviços estão prontos
         abrir_interfaces_web()
         print("✅ Interfaces web abertas com sucesso!")
         print("🖥️ Os logs dos containers estão sendo exibidos abaixo.")

@@ -12,6 +12,11 @@ services:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d streaming_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Serviço do MongoDB
   mongo:
@@ -21,6 +26,11 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Serviço do Redis
   redis:
@@ -31,7 +41,13 @@ services:
     volumes:
       - redis_data:/data
     command: [ "redis-server", "--appendonly", "yes" ]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # Kafka
   kafka:
     image: bitnami/kafka:3.7.0
     container_name: kafka
@@ -50,6 +66,7 @@ services:
       - ALLOW_PLAINTEXT_LISTENER=yes
       - KAFKA_LOG_LEVEL=ERROR
 
+  # Elasticsearch
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0
     container_name: elasticsearch
@@ -61,7 +78,7 @@ services:
     volumes:
       - es_data:/usr/share/elasticsearch/data
 
-  # UI
+  # UIs de administração
   adminer:
     image: adminer
     restart: always
@@ -90,7 +107,7 @@ services:
     depends_on:
       - elasticsearch
 
-  # Serviços de aplicação - Ajuste da ordem de inicialização
+  # Serviços de aplicação
   s1:
     build: ./s1
     container_name: s1

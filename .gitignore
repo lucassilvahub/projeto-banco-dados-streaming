@@ -57,3 +57,6 @@ pylint-report.txt
 # FastAPI static/docs
 static/
 docs/
+
+# Arquivos de log do S3
+system_logs.json
