@@ -8,36 +8,7 @@ Este projeto implementa uma plataforma de streaming moderna com arquitetura orie
 
 O sistema é composto por 3 serviços principais e um dashboard, todos containerizados via Docker:
 
-```mermaid
-graph TD
-    Client[Cliente HTTP] -->|Requisições| S1[S1 - API FastAPI]
-    S1 -->|Produz eventos| Kafka[Apache Kafka]
-    Kafka -->|Consome eventos| S2[S2 - Processador]
-    S2 -->|Armazena dados| Postgres[(PostgreSQL)]
-    S2 -->|Produz respostas| Kafka
-    Kafka -->|Respostas| S1
-    Kafka -->|Eventos/Respostas| S3[S3 - Monitor]
-    S3 -->|Armazena logs| ES[(Elasticsearch)]
-    ES -->|Visualização| Kibana[Kibana]
-    
-    Client -->|Acesso| Dashboard[Dashboard Web]
-    Dashboard -->|Links| Adminer[Adminer]
-    Dashboard -->|Links| KafkaUI[Kafka UI]
-    Dashboard -->|Links| Kibana
-    Dashboard -->|Links| SwaggerUI[Swagger UI]
-    
-    classDef primary fill:#3498db,stroke:#2980b9,color:white;
-    classDef secondary fill:#2ecc71,stroke:#27ae60,color:white;
-    classDef database fill:#e74c3c,stroke:#c0392b,color:white;
-    classDef queue fill:#f39c12,stroke:#d35400,color:white;
-    classDef ui fill:#9b59b6,stroke:#8e44ad,color:white;
-    
-    class S1,S2,S3 primary;
-    class Postgres,ES,MongoDB,Redis database;
-    class Kafka queue;
-    class Dashboard,Adminer,KafkaUI,Kibana,SwaggerUI ui;
-    class Client secondary;
-```
+![Captura de tela 2025-05-09 201754](https://github.com/user-attachments/assets/7eda8a42-e30a-4ff3-be1a-72a2d119a746)
 
 ### Serviços
 
