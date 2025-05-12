@@ -1,5 +1,5 @@
 import asyncio
-import aioredis
+import redis.asyncio as aioredis  # Changed import to use redis.asyncio
 from datetime import datetime, timedelta
 import logging
 import os
@@ -33,7 +33,7 @@ async def connect_to_redis(max_retries=15, retry_delay=5):
     while redis is None and retries < max_retries:
         try:
             logger.info(f"🔌 Tentando conectar ao Redis em {REDIS_URL} ({retries+1}/{max_retries})...")
-            redis = await aioredis.from_url(REDIS_URL, decode_responses=True)
+            redis = aioredis.from_url(REDIS_URL, decode_responses=True)
             # Verificar conexão
             await redis.ping()
             logger.info("✅ Conexão com o Redis bem-sucedida!")

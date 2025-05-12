@@ -14,6 +14,7 @@ MONGO_HOST = os.getenv("MONGO_HOST", "mongo")
 MONGO_PORT = int(os.getenv("MONGO_PORT", "27017"))
 MONGO_DB = os.getenv("MONGO_DB", "streaming_db")
 MONGO_URI = f"mongodb://{MONGO_HOST}:{MONGO_PORT}"
+OUTPUT_TOPIC = "response_events"  # Definição local para evitar importação circular
 
 # ========================
 # 📥 Configuração de Logs

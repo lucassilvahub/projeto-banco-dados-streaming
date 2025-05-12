@@ -9,6 +9,7 @@ import sys
 from aiohttp import web
 
 # Importar handlers para os diferentes bancos de dados
+# Handlers foram modificados para evitar importação circular
 import postgres_handler
 import mongodb_handler
 import redis_handler
@@ -135,19 +136,22 @@ async def processar_evento(evento, pg_conn, mongo_db, redis_conn, producer):
     
     try:
         # Tentar processar com o handler PostgreSQL primeiro
-        result = await postgres_handler.processar_evento_postgres(pg_conn, evento, producer)
-        if result is not None:
-            return result
+        if pg_conn is not None:
+            result = await postgres_handler.processar_evento_postgres(pg_conn, evento, producer)
+            if result is not None:
+                return result
         
         # Se não foi processado pelo PostgreSQL, tentar com MongoDB
-        result = await mongodb_handler.processar_evento_mongodb(mongo_db, evento, producer)
-        if result is not None:
-            return result
+        if mongo_db is not None:
+            result = await mongodb_handler.processar_evento_mongodb(mongo_db, evento, producer)
+            if result is not None:
+                return result
         
         # Se ainda não foi processado, tentar com Redis
-        result = await redis_handler.processar_evento_redis(redis_conn, evento, producer)
-        if result is not None:
-            return result
+        if redis_conn is not None:
+            result = await redis_handler.processar_evento_redis(redis_conn, evento, producer)
+            if result is not None:
+                return result
         
         # Se nenhum handler processou o evento
         logger.warning(f"⚠️ Evento não reconhecido ou não suportado: {tipo}")
@@ -189,61 +193,41 @@ async def iniciar_processador():
     logger.info("⏳ Aguardando serviços estarem disponíveis...")
     await asyncio.sleep(10)
     
-    # Inicializar conexões em paralelo
-    logger.info("🔄 Inicializando conexões com bancos de dados...")
-    pg_conn_task = asyncio.create_task(postgres_handler.connect_to_postgres())
-    mongo_client_task, mongo_db_task = None, None
-    redis_conn_task = None
+    # Inicializar conexões com PostgreSQL
+    logger.info("🔄 Inicializando conexão com PostgreSQL...")
+    pg_conn = await postgres_handler.connect_to_postgres()
     
-    try:
-        mongo_client, mongo_db = await mongodb_handler.connect_to_mongodb()
-        mongo_client_task, mongo_db_task = mongo_client, mongo_db
-    except Exception as e:
-        logger.error(f"❌ Erro ao criar tarefa de conexão MongoDB: {e}")
+    # Inicializar conexões com MongoDB
+    logger.info("🔄 Inicializando conexão com MongoDB...")
+    mongo_client, mongo_db = await mongodb_handler.connect_to_mongodb()
     
-    try:
-        redis_conn_task = asyncio.create_task(redis_handler.connect_to_redis())
-    except Exception as e:
-        logger.error(f"❌ Erro ao criar tarefa de conexão Redis: {e}")
-    
-    # Aguardar todas as conexões
-    logger.info("⏳ Aguardando conexões serem estabelecidas...")
-    
-    pg_conn = await pg_conn_task
-    if pg_conn is None:
-        logger.error("❌ Falha ao conectar no PostgreSQL, mas continuando com outros bancos...")
-    else:
-        # Inicializar tabelas PostgreSQL
-        await postgres_handler.criar_tabelas_postgres(pg_conn)
-    
-    redis_conn = None
-    if redis_conn_task:
-        redis_conn = await redis_conn_task
-        if redis_conn is None:
-            logger.error("❌ Falha ao conectar no Redis, mas continuando com outros bancos...")
-        else:
-            # Inicializar Redis
-            await redis_handler.inicializar_redis(redis_conn)
-    
-    mongo_db = None
-    if mongo_db_task:
-        mongo_db = mongo_db_task
-        if mongo_db is None:
-            logger.error("❌ Falha ao conectar no MongoDB, mas continuando com outros bancos...")
-        else:
-            # Inicializar MongoDB
-            await mongodb_handler.inicializar_mongodb(mongo_db)
+    # Inicializar conexões com Redis
+    logger.info("🔄 Inicializando conexão com Redis...")
+    redis_conn = await redis_handler.connect_to_redis()
     
     # Verificar se pelo menos um banco de dados está disponível
     if pg_conn is None and redis_conn is None and mongo_db is None:
         logger.error("❌ Nenhum banco de dados disponível. Encerrando serviço.")
         return
     
+    # Configurar databases disponíveis
+    if pg_conn is not None:
+        # Inicializar tabelas PostgreSQL
+        await postgres_handler.criar_tabelas_postgres(pg_conn)
+    
+    if redis_conn is not None:
+        # Inicializar Redis
+        await redis_handler.inicializar_redis(redis_conn)
+        
+    if mongo_db is not None:
+        # Inicializar MongoDB
+        await mongodb_handler.inicializar_mongodb(mongo_db)
+    
     # Inicialização do produtor Kafka
     producer = await create_kafka_producer()
     if producer is None:
         logger.error("❌ Não foi possível iniciar o produtor Kafka. Encerrando serviço.")
-        await cleanup_connections(pg_conn, mongo_client_task, redis_conn)
+        await cleanup_connections(pg_conn, mongo_client, redis_conn)
         return
     
     # Inicialização do consumidor Kafka
@@ -251,7 +235,7 @@ async def iniciar_processador():
     if consumer is None:
         logger.error("❌ Não foi possível iniciar o consumidor Kafka. Encerrando serviço.")
         await producer.stop()
-        await cleanup_connections(pg_conn, mongo_client_task, redis_conn)
+        await cleanup_connections(pg_conn, mongo_client, redis_conn)
         return
     
     # Loop principal de processamento de eventos
@@ -273,25 +257,25 @@ async def iniciar_processador():
         logger.info("🛑 Encerrando conexões...")
         await consumer.stop()
         await producer.stop()
-        await cleanup_connections(pg_conn, mongo_client_task, redis_conn)
+        await cleanup_connections(pg_conn, mongo_client, redis_conn)
 
 async def cleanup_connections(pg_conn, mongo_client, redis_conn):
     """Fecha todas as conexões com bancos de dados"""
-    if pg_conn:
+    if pg_conn is not None:
         try:
             await pg_conn.close()
             logger.info("✅ Conexão PostgreSQL encerrada")
         except Exception as e:
             logger.error(f"❌ Erro ao fechar conexão PostgreSQL: {e}")
     
-    if mongo_client:
+    if mongo_client is not None:
         try:
             mongo_client.close()
             logger.info("✅ Conexão MongoDB encerrada")
         except Exception as e:
             logger.error(f"❌ Erro ao fechar conexão MongoDB: {e}")
     
-    if redis_conn:
+    if redis_conn is not None:
         try:
             await redis_conn.close()
             logger.info("✅ Conexão Redis encerrada")

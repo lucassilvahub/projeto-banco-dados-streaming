@@ -242,20 +242,31 @@ def registrar_pagamento(user_id: int):
     }
 
 @app.post("/usuarios/{user_id}/config")
-def atualizar_config(user_id: int, idioma: str = "pt-BR", notificacoes: bool = True):
+def atualizar_config(user_id: int, idioma: str = "pt-BR", notificacoes: bool = True, tema: str = "escuro"):
     """
-    Atualiza preferências do usuário e envia o evento para persistir no PostgreSQL.
-    
+    Atualiza preferências do usuário com dados aleatórios e envia o evento para persistir no PostgreSQL.
     (PostgreSQL)
     """
+    # Gerar dados aleatórios para as preferências
+    idiomas_disponiveis = ["pt-BR", "en-US", "es-ES", "fr-FR"]
+    temas_disponiveis = ["escuro", "claro", "sistema"]
+    notificacoes_opcoes = [True, False]
+    
+    # Usando random.choice para selecionar valores aleatórios
+    idioma = random.choice(idiomas_disponiveis)
+    tema = random.choice(temas_disponiveis)
+    notificacoes = random.choice(notificacoes_opcoes)
+    
     preferencias = {
         "idioma": idioma,
-        "notificacoes": notificacoes
+        "notificacoes": notificacoes,
+        "tema": tema
     }
 
     evento = {
         "user_id": user_id,
-        "preferencias": preferencias
+        "preferencias": preferencias,
+        "data_atualizacao": datetime.utcnow().isoformat()  # Data de atualização da configuração
     }
 
     correlation_id = send_event("user_events", "atualizar_config", evento)

@@ -1,25 +1,20 @@
 import asyncio
-import json
-from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+import asyncpg
 from datetime import datetime
 import logging
 import os
-import time
-import sys
-from aiohttp import web
-
-# Importar handlers para os diferentes bancos de dados
-import postgres_handler
-import mongodb_handler
-import redis_handler
+import traceback
+import json
 
 # ========================
 # 🛠️ Configurações
 # ========================
-KAFKA_BROKER = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
-INPUT_TOPIC = "user_events"
-OUTPUT_TOPIC = "response_events"
-KAFKA_CONSUMER_TIMEOUT_MS = int(os.getenv("KAFKA_CONSUMER_TIMEOUT_MS", "30000"))
+POSTGRES_USER = os.getenv("POSTGRES_USER", "user")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "streaming_db")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgres")
+POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5432"))
+OUTPUT_TOPIC = "response_events"  # Definição local para evitar importação circular
 
 # ========================
 # 📥 Configuração de Logs
@@ -28,335 +23,335 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger("s2_main")
+logger = logging.getLogger("s2_postgres")
 
 # ========================
-# 🔄 Funções Utilitárias do Kafka
+# 📡 Funções de Postgres
 # ========================
-async def create_kafka_producer(max_retries=15, retry_delay=5):
-    """Inicia o produtor Kafka com várias tentativas."""
-    producer = None
+async def connect_to_postgres(max_retries=15, retry_delay=5):
+    """Conecta ao PostgreSQL com várias tentativas."""
+    conn = None
     retries = 0
     
-    while producer is None and retries < max_retries:
+    postgres_url = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+    
+    while conn is None and retries < max_retries:
         try:
-            logger.info(f"🔌 Iniciando Kafka Producer... ({retries+1}/{max_retries})")
-            producer = AIOKafkaProducer(
-                bootstrap_servers=KAFKA_BROKER,
-                value_serializer=lambda v: json.dumps(v).encode("utf-8")
-            )
-            await producer.start()
-            logger.info("✅ Kafka Producer iniciado com sucesso!")
-            return producer
+            logger.info(f"🔌 Tentando conectar ao PostgreSQL em {POSTGRES_HOST}:{POSTGRES_PORT} ({retries+1}/{max_retries})...")
+            conn = await asyncpg.connect(postgres_url)
+            logger.info("✅ Conexão com o PostgreSQL bem-sucedida!")
+            return conn
         except Exception as e:
-            logger.error(f"❌ Erro ao iniciar Kafka Producer: {e}")
+            logger.error(f"❌ Erro ao conectar ao PostgreSQL: {e}")
             retries += 1
             await asyncio.sleep(retry_delay)
     
-    if producer is None:
-        logger.error("❌ Não foi possível iniciar o Kafka Producer após várias tentativas.")
+    if conn is None:
+        logger.error("❌ Não foi possível conectar ao PostgreSQL após várias tentativas.")
         return None
 
-async def create_kafka_consumer(max_retries=15, retry_delay=5):
-    """Inicia o consumidor Kafka com várias tentativas."""
-    consumer = None
-    retries = 0
-    
-    while consumer is None and retries < max_retries:
-        try:
-            logger.info(f"🔌 Iniciando Kafka Consumer... ({retries+1}/{max_retries})")
-            consumer = AIOKafkaConsumer(
-                INPUT_TOPIC,
-                bootstrap_servers=KAFKA_BROKER,
-                group_id="s2_consumer_group",
-                value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-                auto_offset_reset="latest",
-                consumer_timeout_ms=KAFKA_CONSUMER_TIMEOUT_MS
+async def criar_tabelas_postgres(conn):
+    """Cria tabelas necessárias no PostgreSQL sem foreign keys."""
+    try:
+        logger.info("🏗️ Verificando/criando tabelas no PostgreSQL...")
+
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER UNIQUE NOT NULL,
+                nome VARCHAR(100) NOT NULL,
+                email VARCHAR(100) UNIQUE NOT NULL,
+                cpf VARCHAR(20) UNIQUE NOT NULL,
+                data_criacao TIMESTAMP NOT NULL DEFAULT NOW()
             )
-            await consumer.start()
-            logger.info("✅ Kafka Consumer iniciado com sucesso!")
-            
-            # Verificar se o tópico existe
-            topics = await consumer.topics()
-            if INPUT_TOPIC not in topics:
-                logger.warning(f"⚠️ Tópico {INPUT_TOPIC} não encontrado. Tentando criar...")
-                # Tenta enviar uma mensagem para criar o tópico
-                temp_producer = AIOKafkaProducer(
-                    bootstrap_servers=KAFKA_BROKER,
-                    value_serializer=lambda v: json.dumps(v).encode("utf-8")
-                )
-                await temp_producer.start()
-                await temp_producer.send_and_wait(
-                    INPUT_TOPIC, 
-                    {"event_type": "init", "message": "Inicializando tópico"}
-                )
-                await temp_producer.stop()
-                logger.info(f"✅ Tópico {INPUT_TOPIC} criado com sucesso!")
-            else:
-                logger.info(f"✅ Tópico {INPUT_TOPIC} encontrado!")
-                
-            # Verificar se o tópico de resposta existe
-            if OUTPUT_TOPIC not in topics:
-                logger.warning(f"⚠️ Tópico {OUTPUT_TOPIC} não encontrado. Tentando criar...")
-                # Tenta enviar uma mensagem para criar o tópico
-                temp_producer = AIOKafkaProducer(
-                    bootstrap_servers=KAFKA_BROKER,
-                    value_serializer=lambda v: json.dumps(v).encode("utf-8")
-                )
-                await temp_producer.start()
-                await temp_producer.send_and_wait(
-                    OUTPUT_TOPIC, 
-                    {"event_type": "init", "message": "Inicializando tópico de resposta"}
-                )
-                await temp_producer.stop()
-                logger.info(f"✅ Tópico {OUTPUT_TOPIC} criado com sucesso!")
-            else:
-                logger.info(f"✅ Tópico {OUTPUT_TOPIC} encontrado!")
-                
-            return consumer
-        except Exception as e:
-            logger.error(f"❌ Erro ao iniciar Kafka Consumer: {e}")
-            retries += 1
-            await asyncio.sleep(retry_delay)
-    
-    if consumer is None:
-        logger.error("❌ Não foi possível iniciar o Kafka Consumer após várias tentativas.")
-        return None
+        """)
 
-# ========================
-# 📡 Processador Principal
-# ========================
-async def processar_evento(evento, pg_conn, mongo_db, redis_conn, producer):
-    """Roteia eventos para o handler apropriado com base no tipo de evento."""
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS assinaturas (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                plano VARCHAR(50) NOT NULL,
+                inicio DATE NOT NULL,
+                fim DATE NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'ativa',
+                UNIQUE(user_id)
+            )
+        """)
+
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS pagamentos (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                valor DECIMAL(10,2) NOT NULL,
+                forma_pagamento VARCHAR(50) NOT NULL,
+                status VARCHAR(20) NOT NULL,
+                data_pagamento TIMESTAMP NOT NULL DEFAULT NOW()
+            )
+        """)
+
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS preferencias (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                idioma VARCHAR(10) NOT NULL DEFAULT 'pt-BR',
+                notificacoes BOOLEAN NOT NULL DEFAULT TRUE,
+                tema VARCHAR(20) NOT NULL DEFAULT 'escuro',
+                data_atualizacao TIMESTAMP NOT NULL DEFAULT NOW(),
+                UNIQUE(user_id)
+            )
+        """)
+
+        logger.info("✅ Tabelas PostgreSQL criadas/verificadas sem constraints")
+    except Exception as e:
+        logger.error(f"❌ Erro ao criar tabelas no PostgreSQL: {e}")
+        logger.error(traceback.format_exc())
+
+async def processar_evento_postgres(conn, evento, producer):
+    """Processa eventos específicos do PostgreSQL"""
+    if conn is None:
+        logger.warning("⚠️ Conexão PostgreSQL não disponível. Ignorando evento.")
+        return None
+        
     tipo = evento.get("event_type")
     correlation_id = evento.get("correlation_id", "unknown")
     
-    logger.info(f"🔄 Processando evento: {tipo} (correlation_id: {correlation_id})")
-    
     try:
-        # Tentar processar com o handler PostgreSQL primeiro
-        result = await postgres_handler.processar_evento_postgres(pg_conn, evento, producer)
-        if result is not None:
-            return result
+        if tipo == "criar_usuario":
+            return await processar_criar_usuario(conn, evento, producer)
+        elif tipo == "atualizar_assinatura":
+            return await processar_atualizar_assinatura(conn, evento, producer)
+        elif tipo == "pagamento_realizado":
+            return await processar_pagamento(conn, evento, producer)
+        elif tipo == "atualizar_config":
+            return await processar_atualizar_config(conn, evento, producer)
         
-        # Se não foi processado pelo PostgreSQL, tentar com MongoDB
-        result = await mongodb_handler.processar_evento_mongodb(mongo_db, evento, producer)
-        if result is not None:
-            return result
-        
-        # Se ainda não foi processado, tentar com Redis
-        result = await redis_handler.processar_evento_redis(redis_conn, evento, producer)
-        if result is not None:
-            return result
-        
-        # Se nenhum handler processou o evento
-        logger.warning(f"⚠️ Evento não reconhecido ou não suportado: {tipo}")
-        
-        # Enviar resposta de erro para eventos não reconhecidos
-        error_response = {
-            "correlation_id": correlation_id,
-            "event_type": "response",
-            "original_event_type": tipo,
-            "timestamp": datetime.utcnow().isoformat(),
-            "status": "error",
-            "message": f"Tipo de evento não suportado: {tipo}"
-        }
-        
-        await producer.send_and_wait(OUTPUT_TOPIC, error_response)
-        return False
-        
+        # Retorna None se o evento não for para o PostgreSQL
+        return None
     except Exception as e:
-        logger.error(f"❌ Erro ao processar evento {tipo}: {e}")
-        import traceback
+        logger.error(f"❌ Erro ao processar evento {tipo} no PostgreSQL: {e}")
         logger.error(traceback.format_exc())
         
-        # Enviar resposta de erro genérica
+        # Enviar resposta de erro
         error_response = {
             "correlation_id": correlation_id,
             "event_type": "response",
             "original_event_type": tipo,
             "timestamp": datetime.utcnow().isoformat(),
             "status": "error",
-            "message": f"Erro ao processar evento: {str(e)}"
+            "message": f"Erro ao processar evento no PostgreSQL: {str(e)}"
         }
         
         await producer.send_and_wait(OUTPUT_TOPIC, error_response)
         return False
 
-async def iniciar_processador():
-    """Inicializa o serviço de processamento de eventos com todos os handlers"""
-    # Esperando para os serviços estarem prontos
-    logger.info("⏳ Aguardando serviços estarem disponíveis...")
-    await asyncio.sleep(10)
-    
-    # Inicializar conexões em paralelo
-    logger.info("🔄 Inicializando conexões com bancos de dados...")
-    pg_conn_task = asyncio.create_task(postgres_handler.connect_to_postgres())
-    mongo_client_task, mongo_db_task = None, None
-    redis_conn_task = None
+async def processar_criar_usuario(conn, evento, producer):
+    """Processa o evento de criação de usuário no PostgreSQL"""
+    user_id = evento.get("user_id")
+    nome = evento.get("nome")
+    email = evento.get("email")
+    cpf = evento.get("cpf")
+    correlation_id = evento.get("correlation_id")
     
     try:
-        mongo_client, mongo_db = await mongodb_handler.connect_to_mongodb()
-        mongo_client_task, mongo_db_task = mongo_client, mongo_db
+        # Inserir na tabela de usuários
+        await conn.execute('''
+            INSERT INTO usuarios(user_id, nome, email, cpf, data_criacao)
+            VALUES($1, $2, $3, $4, $5)
+            ON CONFLICT (user_id) DO UPDATE
+            SET nome = $2, email = $3, cpf = $4
+        ''', user_id, nome, email, cpf, datetime.utcnow())
+        
+        logger.info(f"✅ Usuário {user_id} criado/atualizado com sucesso")
+        
+        # Enviar resposta de sucesso
+        response = {
+            "correlation_id": correlation_id,
+            "event_type": "response",
+            "original_event_type": "criar_usuario",
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "success",
+            "message": f"Usuário {user_id} criado/atualizado com sucesso",
+            "user_id": user_id
+        }
+        
+        await producer.send_and_wait(OUTPUT_TOPIC, response)
+        return True
     except Exception as e:
-        logger.error(f"❌ Erro ao criar tarefa de conexão MongoDB: {e}")
-    
-    try:
-        redis_conn_task = asyncio.create_task(redis_handler.connect_to_redis())
-    except Exception as e:
-        logger.error(f"❌ Erro ao criar tarefa de conexão Redis: {e}")
-    
-    # Aguardar todas as conexões
-    logger.info("⏳ Aguardando conexões serem estabelecidas...")
-    
-    pg_conn = await pg_conn_task
-    if pg_conn is None:
-        logger.error("❌ Falha ao conectar no PostgreSQL, mas continuando com outros bancos...")
-    else:
-        # Inicializar tabelas PostgreSQL
-        await postgres_handler.criar_tabelas_postgres(pg_conn)
-    
-    redis_conn = None
-    if redis_conn_task:
-        redis_conn = await redis_conn_task
-        if redis_conn is None:
-            logger.error("❌ Falha ao conectar no Redis, mas continuando com outros bancos...")
-        else:
-            # Inicializar Redis
-            await redis_handler.inicializar_redis(redis_conn)
-    
-    mongo_db = None
-    if mongo_db_task:
-        mongo_db = mongo_db_task
-        if mongo_db is None:
-            logger.error("❌ Falha ao conectar no MongoDB, mas continuando com outros bancos...")
-        else:
-            # Inicializar MongoDB
-            await mongodb_handler.inicializar_mongodb(mongo_db)
-    
-    # Verificar se pelo menos um banco de dados está disponível
-    if pg_conn is None and redis_conn is None and mongo_db is None:
-        logger.error("❌ Nenhum banco de dados disponível. Encerrando serviço.")
-        return
-    
-    # Inicialização do produtor Kafka
-    producer = await create_kafka_producer()
-    if producer is None:
-        logger.error("❌ Não foi possível iniciar o produtor Kafka. Encerrando serviço.")
-        await cleanup_connections(pg_conn, mongo_client_task, redis_conn)
-        return
-    
-    # Inicialização do consumidor Kafka
-    consumer = await create_kafka_consumer()
-    if consumer is None:
-        logger.error("❌ Não foi possível iniciar o consumidor Kafka. Encerrando serviço.")
-        await producer.stop()
-        await cleanup_connections(pg_conn, mongo_client_task, redis_conn)
-        return
-    
-    # Loop principal de processamento de eventos
-    try:
-        logger.info("📡 Aguardando mensagens...")
-        async for msg in consumer:
-            evento = msg.value
-            logger.info(f"📩 Evento recebido: {evento.get('event_type')} (correlation_id: {evento.get('correlation_id', 'N/A')})")
-            
-            try:
-                await processar_evento(evento, pg_conn, mongo_db, redis_conn, producer)
-            except Exception as e:
-                logger.error(f"❌ Erro ao processar evento: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
-    except Exception as e:
-        logger.error(f"❌ Erro no loop principal: {e}")
-    finally:
-        logger.info("🛑 Encerrando conexões...")
-        await consumer.stop()
-        await producer.stop()
-        await cleanup_connections(pg_conn, mongo_client_task, redis_conn)
+        logger.error(f"❌ Erro ao criar usuário {user_id}: {e}")
+        
+        # Enviar resposta de erro
+        error_response = {
+            "correlation_id": correlation_id,
+            "event_type": "response",
+            "original_event_type": "criar_usuario",
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "error",
+            "message": f"Erro ao criar usuário: {str(e)}"
+        }
+        
+        await producer.send_and_wait(OUTPUT_TOPIC, error_response)
+        return False
 
-async def cleanup_connections(pg_conn, mongo_client, redis_conn):
-    """Fecha todas as conexões com bancos de dados"""
-    if pg_conn:
-        try:
-            await pg_conn.close()
-            logger.info("✅ Conexão PostgreSQL encerrada")
-        except Exception as e:
-            logger.error(f"❌ Erro ao fechar conexão PostgreSQL: {e}")
-    
-    if mongo_client:
-        try:
-            mongo_client.close()
-            logger.info("✅ Conexão MongoDB encerrada")
-        except Exception as e:
-            logger.error(f"❌ Erro ao fechar conexão MongoDB: {e}")
-    
-    if redis_conn:
-        try:
-            await redis_conn.close()
-            logger.info("✅ Conexão Redis encerrada")
-        except Exception as e:
-            logger.error(f"❌ Erro ao fechar conexão Redis: {e}")
+async def processar_atualizar_assinatura(conn, evento, producer):
+    """Processa o evento de atualização de assinatura no PostgreSQL"""
+    from datetime import datetime, date
 
-# ========================
-# 🛡️ API de Health Check
-# ========================
-async def health_check_api():
-    """Endpoint de saúde simples para verificar se o serviço está funcionando."""
-    async def health_handler(request):
-        # Verificar conexões aqui, se necessário
-        return web.json_response({
-            "service": "s2",
-            "status": "healthy",
-            "components": {
-                "postgres": os.getenv("POSTGRES_HOST", "postgres"),
-                "mongodb": os.getenv("MONGO_HOST", "mongo"),
-                "redis": os.getenv("REDIS_HOST", "redis"),
-                "kafka": os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
-            },
-            "timestamp": datetime.utcnow().isoformat()
+    user_id = evento.get("user_id")
+    plano = evento.get("plano")
+    correlation_id = evento.get("correlation_id")
+
+    # Converter datas de string para objeto date
+    try:
+        inicio = datetime.fromisoformat(evento.get("inicio")).date()
+        fim = datetime.fromisoformat(evento.get("fim")).date()
+    except Exception as e:
+        logger.error(f"❌ Datas inválidas fornecidas: {e}")
+        await producer.send_and_wait(OUTPUT_TOPIC, {
+            "correlation_id": correlation_id,
+            "event_type": "response",
+            "original_event_type": "atualizar_assinatura",
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "error",
+            "message": f"Erro ao processar datas da assinatura: {str(e)}"
         })
-    
-    app = web.Application()
-    app.router.add_get('/health', health_handler)
-    
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', 8000)
-    await site.start()
-    logger.info("✅ API de health check iniciada na porta 8000")
-    
-    return runner
+        return False
 
-# ========================
-# 🚀 Ponto de Entrada
-# ========================
-async def main():
     try:
-        logger.info("🚀 Iniciando serviço S2 de processamento com persistência poliglota...")
-        
-        # Iniciar API de health check em uma task separada
-        health_api_runner = await health_check_api()
-        
-        # Iniciar o processador
-        await iniciar_processador()
-        
-        # Cleanup
-        await health_api_runner.cleanup()
-        
-    except KeyboardInterrupt:
-        logger.info("👋 Serviço interrompido pelo usuário")
-    except Exception as e:
-        logger.error(f"❌ Erro fatal: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        sys.exit(1)
+        # Verifica se usuário existe
+        user = await conn.fetchrow("SELECT 1 FROM usuarios WHERE user_id = $1", user_id)
+        if not user:
+            logger.error(f"❌ Usuário {user_id} não encontrado.")
+            raise ValueError("Usuário não encontrado.")
 
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("👋 Serviço interrompido pelo usuário")
+        # Atualiza ou insere a assinatura
+        await conn.execute('''
+            INSERT INTO assinaturas(user_id, plano, inicio, fim, status)
+            VALUES($1, $2, $3, $4, 'ativa')
+            ON CONFLICT (user_id) DO UPDATE
+            SET plano = $2, inicio = $3, fim = $4, status = 'ativa'
+        ''', user_id, plano, inicio, fim)
+
+        logger.info(f"✅ Assinatura para usuário {user_id} atualizada com sucesso")
+        await producer.send_and_wait(OUTPUT_TOPIC, {
+            "correlation_id": correlation_id,
+            "event_type": "response",
+            "original_event_type": "atualizar_assinatura",
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "success",
+            "message": f"Assinatura atualizada com sucesso",
+            "user_id": user_id,
+            "plano": plano
+        })
+        return True
+
     except Exception as e:
-        logger.error(f"❌ Erro fatal: {e}")
-        sys.exit(1)
+        logger.error(f"❌ Erro ao atualizar assinatura: {e}")
+        await producer.send_and_wait(OUTPUT_TOPIC, {
+            "correlation_id": correlation_id,
+            "event_type": "response",
+            "original_event_type": "atualizar_assinatura",
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "error",
+            "message": f"Erro ao atualizar assinatura: {str(e)}"
+        })
+        return False
+
+async def processar_pagamento(conn, evento, producer):
+    """Processa o evento de pagamento no PostgreSQL"""
+    from datetime import datetime
+
+    user_id = evento.get("user_id")
+    valor = evento.get("valor")
+    forma_pagamento = evento.get("forma_pagamento")
+    status = evento.get("status")
+    correlation_id = evento.get("correlation_id")
+
+    try:
+        # Verifica se usuário existe
+        user = await conn.fetchrow("SELECT 1 FROM usuarios WHERE user_id = $1", user_id)
+        if not user:
+            logger.error(f"❌ Usuário {user_id} não encontrado.")
+            raise ValueError("Usuário não encontrado.")
+
+        # Insere o pagamento
+        await conn.execute('''
+            INSERT INTO pagamentos(user_id, valor, forma_pagamento, status, data_pagamento)
+            VALUES($1, $2, $3, $4, $5)
+        ''', user_id, valor, forma_pagamento, status, datetime.utcnow())
+
+        logger.info(f"✅ Pagamento registrado com sucesso para usuário {user_id}")
+        await producer.send_and_wait(OUTPUT_TOPIC, {
+            "correlation_id": correlation_id,
+            "event_type": "response",
+            "original_event_type": "pagamento_realizado",
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "success",
+            "message": f"Pagamento registrado com sucesso",
+            "user_id": user_id,
+            "valor": valor
+        })
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ Erro ao registrar pagamento: {e}")
+        await producer.send_and_wait(OUTPUT_TOPIC, {
+            "correlation_id": correlation_id,
+            "event_type": "response",
+            "original_event_type": "pagamento_realizado",
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "error",
+            "message": f"Erro ao registrar pagamento: {str(e)}"
+        })
+        return False
+
+async def processar_atualizar_config(conn, evento, producer):
+    """Processa o evento de atualização de preferências do usuário no PostgreSQL"""
+    from datetime import datetime
+
+    user_id = evento.get("user_id")
+    idioma = evento.get("idioma")
+    notificacoes = evento.get("notificacoes")
+    tema = evento.get("tema")
+    correlation_id = evento.get("correlation_id")
+
+    try:
+        # Verificar se o usuário existe
+        user = await conn.fetchrow("SELECT user_id FROM usuarios WHERE user_id = $1", user_id)
+        if not user:
+            logger.error(f"❌ Usuário {user_id} não encontrado.")
+            raise ValueError("Usuário não encontrado.")
+
+        # Atualizar ou inserir as preferências
+        await conn.execute('''
+            INSERT INTO preferencias(user_id, idioma, notificacoes, tema)
+            VALUES($1, $2, $3, $4)
+            ON CONFLICT (user_id) DO UPDATE
+            SET idioma = $2, notificacoes = $3, tema = $4, data_atualizacao = NOW()
+        ''', user_id, idioma, notificacoes, tema)
+
+        logger.info(f"✅ Configurações atualizadas para o usuário {user_id}")
+
+        response = {
+            "correlation_id": correlation_id,
+            "event_type": "response",
+            "original_event_type": "atualizar_config",
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "success",
+            "message": f"Configurações atualizadas com sucesso para o usuário {user_id}",
+            "user_id": user_id,
+        }
+        await producer.send_and_wait(OUTPUT_TOPIC, response)
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ Erro ao atualizar configurações para o usuário {user_id}: {e}")
+        error_response = {
+            "correlation_id": correlation_id,
+            "event_type": "response",
+            "original_event_type": "atualizar_config",
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "error",
+            "message": f"Erro ao atualizar configurações: {str(e)}"
+        }
+        await producer.send_and_wait(OUTPUT_TOPIC, error_response)
+        return False
