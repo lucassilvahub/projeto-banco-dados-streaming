@@ -2,3 +2,4 @@ aiokafka==0.8.1
 elasticsearch==8.10.0
 python-dotenv==1.0.0
 aiohttp==3.9.1
+kafka-python==2.0.2

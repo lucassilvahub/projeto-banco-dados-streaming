@@ -64,7 +64,15 @@ services:
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
       - ALLOW_PLAINTEXT_LISTENER=yes
-      - KAFKA_LOG_LEVEL=ERROR
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD", "/opt/bitnami/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   # Elasticsearch
   elasticsearch:
@@ -77,6 +85,12 @@ services:
       - "9200:9200"
     volumes:
       - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   # UIs de administração
   adminer:
@@ -85,7 +99,8 @@ services:
     ports:
       - 8081:8080
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -95,7 +110,8 @@ services:
       - KAFKA_CLUSTERS_0_NAME=local
       - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
 
   kibana:
     image: docker.elastic.co/kibana/kibana:7.17.0
@@ -105,7 +121,8 @@ services:
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     depends_on:
-      - elasticsearch
+      elasticsearch:
+        condition: service_healthy
 
   # Serviços de aplicação
   s1:
@@ -113,7 +130,8 @@ services:
     container_name: s1
     restart: on-failure
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     ports:
@@ -126,28 +144,40 @@ services:
     container_name: s2
     restart: on-failure
     depends_on:
-      - kafka
-      - postgres
-      - s1
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: streaming_db
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      KAFKA_CONSUMER_TIMEOUT_MS: 30000
     volumes:
       - ./s2:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   s3:
     build: ./s3
     container_name: s3
     restart: on-failure
     depends_on:
-      - kafka
-      - elasticsearch
-      - s2
+      kafka:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       ELASTICSEARCH_HOST: elasticsearch:9200
+      KAFKA_CONSUMER_TIMEOUT_MS: 30000
     volumes:
       - ./s3:/app
 

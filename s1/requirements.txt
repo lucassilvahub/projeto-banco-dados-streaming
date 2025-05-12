@@ -3,3 +3,4 @@ uvicorn==0.29.0
 kafka-python==2.0.2
 faker==24.9.0
 pydantic==2.6.0
+python-dotenv==1.0.0
