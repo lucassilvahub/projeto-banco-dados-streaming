@@ -228,7 +228,7 @@ def registrar_pagamento(user_id: int):
         "user_id": user_id,
         "valor": round(random.uniform(19.90, 49.90), 2),
         "forma_pagamento": random.choice(["Cartão", "Pix", "Boleto"]),
-        "status": "aprovado",
+        "status": "success",
         "data_pagamento": datetime.utcnow().isoformat()
     }
 
