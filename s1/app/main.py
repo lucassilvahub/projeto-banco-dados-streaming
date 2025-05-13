@@ -256,16 +256,20 @@ def atualizar_config(user_id: int, idioma: str = "pt-BR", notificacoes: bool = T
     idioma = random.choice(idiomas_disponiveis)
     tema = random.choice(temas_disponiveis)
     notificacoes = random.choice(notificacoes_opcoes)
+        
+    # VAR FOR DEBBUG
     
     preferencias = {
         "idioma": idioma,
         "notificacoes": notificacoes,
-        "tema": tema
+        "tema": tema,
     }
 
     evento = {
         "user_id": user_id,
-        "preferencias": preferencias,
+        "idioma": idioma,
+        "notificacoes": notificacoes,
+        "tema": tema,
         "data_atualizacao": datetime.utcnow().isoformat()  # Data de atualização da configuração
     }
 
