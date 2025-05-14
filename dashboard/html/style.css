@@ -53,11 +53,29 @@ body {
   box-shadow: 0 5px 15px rgba(0,0,0,0.2);
 }
 
+/* Cor padrão para todos os cabeçalhos */
 .card-header {
   padding: 15px;
-  background-color: #3498db;
   color: white;
 }
+
+/* Cores específicas para cada card usando nth-child ou classes */
+.card-header1 { background-color: #2ecc71; }
+.card-header2 { background-color: #3498db; }
+.card-header3 { background-color: #f39c12;  }
+.card-header4 { background-color: #e74c3c; }
+.card-header5 { background-color: #9b59b6; }
+.card-header6 { background-color: #1abc9c; }
+.card-header7 { background-color: #d35400; }
+.card-header8 { background-color: #34495e; }
+.btn1 { background-color: #2ecc71; }
+.btn2 { background-color: #3498db; }
+.btn3 { background-color: #f39c12;  }
+.btn4 { background-color: #e74c3c; }
+.btn5 { background-color: #9b59b6; }
+.btn6 { background-color: #1abc9c; }
+.btn7 { background-color: #d35400; }
+.btn8 { background-color: #34495e; }
 
 .card-body {
   padding: 20px;
@@ -71,7 +89,6 @@ body {
 
 .btn {
   display: inline-block;
-  background-color: #3498db;
   color: white;
   text-decoration: none;
   padding: 10px 15px;
