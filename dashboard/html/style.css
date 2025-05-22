@@ -60,22 +60,34 @@ body {
 }
 
 /* Cores específicas para cada card usando nth-child ou classes */
-.card-header1 { background-color: #2ecc71; }
-.card-header2 { background-color: #3498db; }
-.card-header3 { background-color: #f39c12;  }
-.card-header4 { background-color: #e74c3c; }
-.card-header5 { background-color: #9b59b6; }
-.card-header6 { background-color: #1abc9c; }
-.card-header7 { background-color: #d35400; }
-.card-header8 { background-color: #34495e; }
+.card-header1 { background-color: #2ecc71; } /* API - Verde */
+.card-header2 { background-color: #3498db; } /* PostgreSQL - Azul */
+.card-header3 { background-color: #f39c12; } /* Kafka - Laranja */
+.card-header4 { background-color: #e74c3c; } /* Kibana - Vermelho */
+.card-header5 { background-color: #9b59b6; } /* Dashboard - Roxo */
+.card-header6 { background-color: #1abc9c; } /* MongoDB - Teal */
+.card-header7 { background-color: #d35400; } /* Redis - Laranja escuro */
+.card-header8 { background-color: #34495e; } /* Reservado - Cinza escuro */
+
+/* Botões com cores correspondentes */
 .btn1 { background-color: #2ecc71; }
 .btn2 { background-color: #3498db; }
-.btn3 { background-color: #f39c12;  }
+.btn3 { background-color: #f39c12; }
 .btn4 { background-color: #e74c3c; }
 .btn5 { background-color: #9b59b6; }
 .btn6 { background-color: #1abc9c; }
 .btn7 { background-color: #d35400; }
 .btn8 { background-color: #34495e; }
+
+/* Efeitos hover para os botões */
+.btn1:hover { background-color: #27ae60; } /* Verde mais escuro */
+.btn2:hover { background-color: #2980b9; } /* Azul mais escuro */
+.btn3:hover { background-color: #e67e22; } /* Laranja mais escuro */
+.btn4:hover { background-color: #c0392b; } /* Vermelho mais escuro */
+.btn5:hover { background-color: #8e44ad; } /* Roxo mais escuro */
+.btn6:hover { background-color: #16a085; } /* Teal mais escuro */
+.btn7:hover { background-color: #ba4a00; } /* Laranja escuro mais escuro */
+.btn8:hover { background-color: #2c3e50; } /* Cinza mais escuro */
 
 .card-body {
   padding: 20px;
@@ -97,10 +109,6 @@ body {
   width: 100%;
   box-sizing: border-box;
   text-align: center;
-}
-
-.btn:hover {
-  background-color: #2980b9;
 }
 
 /* Postman Card */

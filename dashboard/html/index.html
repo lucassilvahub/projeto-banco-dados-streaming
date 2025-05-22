@@ -27,6 +27,8 @@
                 <li><code>POST /usuarios/{id}/pagamento</code> - Registrar um pagamento para um usuário</li>
                 <li><code>POST /usuarios/{id}/config</code> - Atualizar configurações de um usuário</li>
                 <li><code>GET /status/{correlation_id}</code> - Verificar o status de uma operação</li>
+                <li><code>POST /historico-visualizacao</code> - Registrar histórico de visualização (MongoDB)</li>
+                <li><code>POST /sessoes</code> - Criar sessão de usuário (Redis)</li>
             </ul>
             <a href="https://github.com/lucassilvahub/projeto-banco-dados-streaming" target="_blank" class="btn btn2">Ver Documentação Completa no Github</a>
         </div>
@@ -56,6 +58,32 @@
                         Banco de dados relacional para usuários, assinaturas e pagamentos.
                     </div>
                     <a href="http://localhost:8081/?pgsql=postgres&server=postgres&username=user&db=streaming_db&password=password" target="_blank" class="btn btn2">Acessar Adminer</a>
+                </div>
+            </div>
+
+            <!-- MongoDB -->
+            <div class="card">
+                <div class="card-header card-header6">
+                    <h2>MongoDB</h2>
+                </div>
+                <div class="card-body">
+                    <div class="card-description">
+                        Banco NoSQL para histórico de visualizações e sistema de recomendações.
+                    </div>
+                    <a href="http://localhost:8082" target="_blank" class="btn btn6">Acessar Mongo Express</a>
+                </div>
+            </div>
+
+            <!-- Redis -->
+            <div class="card">
+                <div class="card-header card-header7">
+                    <h2>Redis</h2>
+                </div>
+                <div class="card-body">
+                    <div class="card-description">
+                        Cache em memória para sessões de usuários e dados de conteúdo.
+                    </div>
+                    <a href="http://localhost:8083" target="_blank" class="btn btn7">Acessar Redis Commander</a>
                 </div>
             </div>
             
