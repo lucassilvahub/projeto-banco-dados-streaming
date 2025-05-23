@@ -189,23 +189,6 @@ O sistema foi projetado para ser escalável:
    - Adicionar CI/CD pipeline
    - Implementar serviço de recomendação baseado em histórico de visualização
 
-## ⚠️ Solução de Problemas
-
-- **Erro ao iniciar os containers:** Verifique se as portas necessárias não estão em uso por outros aplicativos
-- **S1 não conecta ao Kafka:** O serviço tentará reconectar automaticamente. Se persistir, reinicie o container
-- **S2 não conecta ao PostgreSQL:** Verifique os logs e certifique-se de que as variáveis de ambiente estão corretas
-- **Dashboard não carrega:** Verifique se o container do Nginx está em execução
-
-Para interromper todos os serviços:
-```bash
-docker-compose down
-```
-
-Para visualizar logs de um serviço específico:
-```bash
-docker logs [nome_do_container]
-```
-
 ## 🧩 Detalhes Técnicos
 
 ### Comunicação Assíncrona
