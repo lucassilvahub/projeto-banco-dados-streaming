@@ -316,24 +316,30 @@ def atualizar_config(
 @app.post("/historico-visualizacao")
 def registrar_visualizacao(
     user_id: int,
-    conteudo_id: int,
-    titulo: str,
-    tipo: str = "filme",
-    tempo_assistido: int = 0,
-    posicao: int = 0,
+    conteudo_id: int = None,
+    titulo: str = None,
+    tipo: str = None,
+    tempo_assistido: int = None,
+    posicao: int = None,
 ):
     """
-    Registra um histórico de visualização de conteúdo no MongoDB.
+    Registra um histórico de visualização de conteúdo via Kafka para MongoDB.
+    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → MongoDB
 
     (MongoDB)
     """
-    # FIXED: Changed from 'if not mongo_db:' to 'if mongo_db is None:'
-    if mongo_db is None:
-        raise HTTPException(status_code=503, detail="MongoDB não está disponível")
+    # Gerar dados fake se não fornecidos
+    if conteudo_id is None:
+        conteudo_id = random.randint(1000, 9999)
+    if titulo is None:
+        titulo = fake.sentence(nb_words=4)
+    if tipo is None:
+        tipo = random.choice(["filme", "série", "documentário"])
+    if tempo_assistido is None:
+        tempo_assistido = random.randint(30, 180)
+    if posicao is None:
+        posicao = random.randint(10, 100)
 
-    historico_collection = mongo_db.historico_visualizacao
-
-    # Dados para salvar
     visualizacao = {
         "user_id": user_id,
         "conteudo_id": conteudo_id,
@@ -341,20 +347,15 @@ def registrar_visualizacao(
         "tipo": tipo,
         "tempo_assistido": tempo_assistido,
         "posicao": posicao,
-        "data": datetime.utcnow(),
-        "concluido": posicao >= 90,  # Considera concluído se assistiu mais de 90%
     }
 
-    # Inserir no MongoDB
-    resultado = historico_collection.insert_one(visualizacao)
-
-    # Converter ObjectId para string para serialização JSON
-    visualizacao["_id"] = str(resultado.inserted_id)
-    visualizacao["data"] = visualizacao["data"].isoformat()
+    correlation_id = send_event("user_events", "registrar_visualizacao", visualizacao)
 
     return {
-        "mensagem": "Histórico de visualização registrado com sucesso (MongoDB)",
-        "historico": visualizacao,
+        "mensagem": "Solicitação de registro de visualização enviada (MongoDB)",
+        "visualizacao": visualizacao,
+        "correlation_id": correlation_id,
+        "status_url": f"/status/{correlation_id}",
     }
 
 
@@ -366,154 +367,67 @@ def obter_historico_visualizacao(
     limit: int = Query(10, ge=1, le=100),
 ):
     """
-    Recupera o histórico de visualização de um usuário do MongoDB.
-    Permite filtrar por tipo de conteúdo e status de conclusão.
+    Recupera o histórico de visualização de um usuário via Kafka para MongoDB.
+    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → MongoDB
 
     (MongoDB)
     """
-    # FIXED: Changed from 'if not mongo_db:' to 'if mongo_db is None:'
-    if mongo_db is None:
-        raise HTTPException(status_code=503, detail="MongoDB não está disponível")
+    evento = {
+        "user_id": user_id,
+        "tipo": tipo,
+        "concluido": concluido,
+        "limit": limit,
+    }
 
-    historico_collection = mongo_db.historico_visualizacao
+    correlation_id = send_event("user_events", "obter_historico_visualizacao", evento)
 
-    # Construir query com filtros
-    query = {"user_id": user_id}
-
-    if tipo:
-        query["tipo"] = tipo
-
-    if concluido is not None:
-        query["concluido"] = concluido
-
-    # Buscar no MongoDB com ordenação por data decrescente
-    resultados = list(historico_collection.find(query).sort("data", -1).limit(limit))
-
-    # Converter ObjectId e data para string para serialização JSON
-    for item in resultados:
-        item["_id"] = str(item["_id"])
-        item["data"] = item["data"].isoformat()
-
-    return {"user_id": user_id, "total": len(resultados), "historico": resultados}
+    return {
+        "mensagem": "Solicitação de histórico de visualização enviada (MongoDB)",
+        "correlation_id": correlation_id,
+        "status_url": f"/status/{correlation_id}",
+    }
 
 
 @app.post("/recomendacoes/gerar")
 def gerar_recomendacoes(user_id: int):
     """
-    Gera recomendações para um usuário com base no histórico de visualização
-    e armazena no MongoDB.
+    Gera recomendações para um usuário via Kafka para MongoDB.
+    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → MongoDB
 
     (MongoDB)
     """
-    # FIXED: Changed from 'if not mongo_db:' to 'if mongo_db is None:'
-    if mongo_db is None:
-        raise HTTPException(status_code=503, detail="MongoDB não está disponível")
-
-    # Obter o histórico de visualização do usuário
-    historico_collection = mongo_db.historico_visualizacao
-    recomendacoes_collection = mongo_db.recomendacoes
-
-    # Buscar os tipos de conteúdo que o usuário mais assiste
-    pipeline = [
-        {"$match": {"user_id": user_id}},
-        {"$group": {"_id": "$tipo", "count": {"$sum": 1}}},
-        {"$sort": {"count": -1}},
-    ]
-
-    tipos_preferidos = list(historico_collection.aggregate(pipeline))
-
-    # Gerar recomendações fake baseadas nas preferências
-    recomendacoes = []
-    categorias = [
-        "Ação",
-        "Comédia",
-        "Drama",
-        "Suspense",
-        "Ficção Científica",
-        "Romance",
-        "Documentário",
-    ]
-
-    for tipo in tipos_preferidos:
-        tipo_conteudo = tipo["_id"]
-        quantidade = min(
-            tipo["count"] * 2, 10
-        )  # 2x mais recomendações do que o histórico, até 10
-
-        for _ in range(quantidade):
-            recomendacao = {
-                "conteudo_id": random.randint(1000, 9999),
-                "titulo": fake.sentence(nb_words=4),
-                "tipo": tipo_conteudo,
-                "categoria": random.choice(categorias),
-                "pontuacao": round(random.uniform(0.5, 1.0), 2),  # Score de 0.5 a 1.0
-                "motivo": f"Baseado nos seus interesses em {tipo_conteudo}s",
-            }
-            recomendacoes.append(recomendacao)
-
-    # Se não houver histórico, gerar algumas recomendações aleatórias
-    if not recomendacoes:
-        for _ in range(5):
-            tipo_conteudo = random.choice(["filme", "série", "documentário"])
-            recomendacao = {
-                "conteudo_id": random.randint(1000, 9999),
-                "titulo": fake.sentence(nb_words=4),
-                "tipo": tipo_conteudo,
-                "categoria": random.choice(categorias),
-                "pontuacao": round(
-                    random.uniform(0.5, 0.8), 2
-                ),  # Score menor para recomendações aleatórias
-                "motivo": "Recomendação baseada em tendências populares",
-            }
-            recomendacoes.append(recomendacao)
-
-    # Salvar recomendações no MongoDB
-    recomendacao_doc = {
+    evento = {
         "user_id": user_id,
-        "data_geracao": datetime.utcnow(),
-        "itens": recomendacoes,
     }
 
-    # Remover recomendações anteriores e inserir novas
-    recomendacoes_collection.delete_many({"user_id": user_id})
-    resultado = recomendacoes_collection.insert_one(recomendacao_doc)
-
-    # Preparar resposta
-    recomendacao_doc["_id"] = str(resultado.inserted_id)
-    recomendacao_doc["data_geracao"] = recomendacao_doc["data_geracao"].isoformat()
+    correlation_id = send_event("user_events", "gerar_recomendacoes", evento)
 
     return {
-        "mensagem": "Recomendações geradas com sucesso (MongoDB)",
-        "recomendacoes": recomendacao_doc,
+        "mensagem": "Solicitação de geração de recomendações enviada (MongoDB)",
+        "correlation_id": correlation_id,
+        "status_url": f"/status/{correlation_id}",
     }
 
 
 @app.get("/recomendacoes/{user_id}")
 def obter_recomendacoes(user_id: int):
     """
-    Recupera as recomendações geradas para um usuário do MongoDB.
+    Recupera as recomendações geradas para um usuário via Kafka para MongoDB.
+    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → MongoDB
 
     (MongoDB)
     """
-    # FIXED: Changed from 'if not mongo_db:' to 'if mongo_db is None:'
-    if mongo_db is None:
-        raise HTTPException(status_code=503, detail="MongoDB não está disponível")
+    evento = {
+        "user_id": user_id,
+    }
 
-    recomendacoes_collection = mongo_db.recomendacoes
+    correlation_id = send_event("user_events", "obter_recomendacoes", evento)
 
-    # Buscar recomendações
-    recomendacao = recomendacoes_collection.find_one({"user_id": user_id})
-
-    if not recomendacao:
-        return {
-            "mensagem": "Não há recomendações para este usuário. Use o endpoint /recomendacoes/gerar primeiro."
-        }
-
-    # Converter ObjectId e data para string para serialização JSON
-    recomendacao["_id"] = str(recomendacao["_id"])
-    recomendacao["data_geracao"] = recomendacao["data_geracao"].isoformat()
-
-    return recomendacao
+    return {
+        "mensagem": "Solicitação de recomendações enviada (MongoDB)",
+        "correlation_id": correlation_id,
+        "status_url": f"/status/{correlation_id}",
+    }
 
 
 # ========================
@@ -522,224 +436,147 @@ def obter_recomendacoes(user_id: int):
 
 
 @app.post("/sessoes")
-def criar_sessao(user_id: int, dispositivo: str, localizacao: str = "Brasil"):
+def criar_sessao(
+    user_id: int, 
+    dispositivo: str = None, 
+    localizacao: str = None
+):
     """
-    Cria uma nova sessão de usuário no Redis.
+    Cria uma nova sessão de usuário via Kafka para Redis.
+    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → Redis
 
     (Redis)
     """
-    # FIXED: Changed from 'if not redis_client:' to 'if redis_client is None:'
-    if redis_client is None:
-        raise HTTPException(status_code=503, detail="Redis não está disponível")
+    # Gerar dados fake se não fornecidos
+    if dispositivo is None:
+        dispositivo = random.choice(["Android", "iOS", "Web", "Smart TV", "Console"])
+    if localizacao is None:
+        localizacao = fake.city()
 
-    # Gerar ID de sessão
-    session_id = str(uuid.uuid4())
-
-    # Dados da sessão
-    session_data = {
+    sessao = {
         "user_id": user_id,
         "dispositivo": dispositivo,
         "localizacao": localizacao,
-        "inicio": datetime.utcnow().isoformat(),
-        "ultima_atividade": datetime.utcnow().isoformat(),
-        "ativo": True,
     }
 
-    # Salvar no Redis
-    redis_client.hset(f"session:{session_id}", mapping=session_data)
-
-    # Definir expiração (24 horas)
-    redis_client.expire(f"session:{session_id}", 60 * 60 * 24)
-
-    # Adicionar à lista de sessões do usuário
-    redis_client.sadd(f"user_sessions:{user_id}", session_id)
+    correlation_id = send_event("user_events", "criar_sessao", sessao)
 
     return {
-        "mensagem": "Sessão criada com sucesso (Redis)",
-        "session_id": session_id,
-        "session_data": session_data,
+        "mensagem": "Solicitação de criação de sessão enviada (Redis)",
+        "sessao": sessao,
+        "correlation_id": correlation_id,
+        "status_url": f"/status/{correlation_id}",
     }
 
 
 @app.put("/sessoes/{session_id}/atividade")
 def atualizar_atividade_sessao(session_id: str):
     """
-    Atualiza o timestamp de última atividade para uma sessão no Redis.
+    Atualiza o timestamp de última atividade para uma sessão via Kafka para Redis.
+    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → Redis
 
     (Redis)
     """
-    # FIXED: Changed from 'if not redis_client:' to 'if redis_client is None:'
-    if redis_client is None:
-        raise HTTPException(status_code=503, detail="Redis não está disponível")
+    evento = {
+        "session_id": session_id,
+    }
 
-    # Verificar se a sessão existe
-    if not redis_client.exists(f"session:{session_id}"):
-        raise HTTPException(status_code=404, detail="Sessão não encontrada")
-
-    # Atualizar timestamp de última atividade
-    timestamp = datetime.utcnow().isoformat()
-    redis_client.hset(f"session:{session_id}", "ultima_atividade", timestamp)
-
-    # Renovar expiração (24 horas desde a última atividade)
-    redis_client.expire(f"session:{session_id}", 60 * 60 * 24)
+    correlation_id = send_event("user_events", "atualizar_atividade_sessao", evento)
 
     return {
-        "mensagem": "Atividade de sessão atualizada com sucesso (Redis)",
+        "mensagem": "Solicitação de atualização de atividade enviada (Redis)",
         "session_id": session_id,
-        "ultima_atividade": timestamp,
+        "correlation_id": correlation_id,
+        "status_url": f"/status/{correlation_id}",
     }
 
 
 @app.delete("/sessoes/{session_id}")
 def encerrar_sessao(session_id: str):
     """
-    Encerra uma sessão de usuário no Redis.
+    Encerra uma sessão de usuário via Kafka para Redis.
+    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → Redis
 
     (Redis)
     """
-    # FIXED: Changed from 'if not redis_client:' to 'if redis_client is None:'
-    if redis_client is None:
-        raise HTTPException(status_code=503, detail="Redis não está disponível")
+    evento = {
+        "session_id": session_id,
+    }
 
-    # Verificar se a sessão existe
-    if not redis_client.exists(f"session:{session_id}"):
-        raise HTTPException(status_code=404, detail="Sessão não encontrada")
-
-    # Obter user_id para remover da lista de sessões do usuário
-    user_id = redis_client.hget(f"session:{session_id}", "user_id")
-
-    # Marcar sessão como inativa
-    redis_client.hset(f"session:{session_id}", "ativo", "False")
-    redis_client.hset(
-        f"session:{session_id}", "encerramento", datetime.utcnow().isoformat()
-    )
-
-    # Definir expiração curta (1 hora)
-    redis_client.expire(f"session:{session_id}", 60 * 60)
-
-    # Remover da lista de sessões ativas do usuário
-    if user_id:
-        redis_client.srem(f"user_sessions:{user_id}", session_id)
+    correlation_id = send_event("user_events", "encerrar_sessao", evento)
 
     return {
-        "mensagem": "Sessão encerrada com sucesso (Redis)",
+        "mensagem": "Solicitação de encerramento de sessão enviada (Redis)",
         "session_id": session_id,
+        "correlation_id": correlation_id,
+        "status_url": f"/status/{correlation_id}",
     }
 
 
 @app.get("/sessoes/usuario/{user_id}")
 def listar_sessoes_usuario(user_id: int, ativas_apenas: bool = True):
     """
-    Lista todas as sessões de um usuário armazenadas no Redis.
+    Lista todas as sessões de um usuário via Kafka para Redis.
+    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → Redis
 
     (Redis)
     """
-    # FIXED: Changed from 'if not redis_client:' to 'if redis_client is None:'
-    if redis_client is None:
-        raise HTTPException(status_code=503, detail="Redis não está disponível")
+    evento = {
+        "user_id": user_id,
+        "ativas_apenas": ativas_apenas,
+    }
 
-    # Obter IDs de sessão do usuário
-    session_ids = redis_client.smembers(f"user_sessions:{user_id}")
+    correlation_id = send_event("user_events", "listar_sessoes_usuario", evento)
 
-    if not session_ids:
-        return {
-            "mensagem": "Usuário não possui sessões ativas",
-            "user_id": user_id,
-            "sessoes": [],
-        }
-
-    # Recuperar dados de cada sessão
-    sessoes = []
-    for session_id in session_ids:
-        session_data = redis_client.hgetall(f"session:{session_id}")
-
-        if session_data:
-            session_data["session_id"] = session_id
-            sessoes.append(session_data)
-
-    return {"user_id": user_id, "total": len(sessoes), "sessoes": sessoes}
+    return {
+        "mensagem": "Solicitação de listagem de sessões enviada (Redis)",
+        "correlation_id": correlation_id,
+        "status_url": f"/status/{correlation_id}",
+    }
 
 
 @app.post("/cache/conteudo/{conteudo_id}")
 def cache_conteudo(conteudo_id: int):
     """
-    Cria ou atualiza informações de conteúdo em cache no Redis.
+    Cria ou atualiza informações de conteúdo em cache via Kafka para Redis.
+    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → Redis
 
     (Redis)
     """
-    # FIXED: Changed from 'if not redis_client:' to 'if redis_client is None:'
-    if redis_client is None:
-        raise HTTPException(status_code=503, detail="Redis não está disponível")
-
-    # Gerar dados fake para o conteúdo
-    categorias = [
-        "Ação",
-        "Comédia",
-        "Drama",
-        "Suspense",
-        "Ficção Científica",
-        "Romance",
-        "Documentário",
-    ]
-
-    conteudo = {
+    evento = {
         "conteudo_id": conteudo_id,
-        "titulo": fake.sentence(nb_words=4),
-        "tipo": random.choice(["filme", "série", "documentário"]),
-        "categoria": random.choice(categorias),
-        "duracao": random.randint(30, 180),
-        "classificacao": random.choice(["Livre", "10+", "12+", "14+", "16+", "18+"]),
-        "ano": random.randint(1990, 2025),
-        "descricao": fake.paragraph(),
-        "popularidade": round(random.uniform(0, 10), 1),
-        "ultimo_acesso": datetime.utcnow().isoformat(),
     }
 
-    # Salvar no Redis
-    redis_client.hset(f"conteudo:{conteudo_id}", mapping=conteudo)
-
-    # Definir expiração (12 horas)
-    redis_client.expire(f"conteudo:{conteudo_id}", 60 * 60 * 12)
-
-    # Incrementar contador de acessos
-    redis_client.hincrby(f"conteudo:{conteudo_id}", "acessos", 1)
+    correlation_id = send_event("user_events", "cache_conteudo", evento)
 
     return {
-        "mensagem": "Conteúdo em cache atualizado com sucesso (Redis)",
-        "conteudo": conteudo,
+        "mensagem": "Solicitação de cache de conteúdo enviada (Redis)",
+        "conteudo_id": conteudo_id,
+        "correlation_id": correlation_id,
+        "status_url": f"/status/{correlation_id}",
     }
 
 
 @app.get("/cache/conteudo/{conteudo_id}")
 def obter_cache_conteudo(conteudo_id: int):
     """
-    Recupera informações de conteúdo do cache no Redis.
+    Recupera informações de conteúdo do cache via Kafka para Redis.
+    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → Redis
 
     (Redis)
     """
-    # FIXED: Changed from 'if not redis_client:' to 'if redis_client is None:'
-    if redis_client is None:
-        raise HTTPException(status_code=503, detail="Redis não está disponível")
+    evento = {
+        "conteudo_id": conteudo_id,
+    }
 
-    # Verificar se o conteúdo está em cache
-    if not redis_client.exists(f"conteudo:{conteudo_id}"):
-        raise HTTPException(status_code=404, detail="Conteúdo não encontrado em cache")
+    correlation_id = send_event("user_events", "obter_cache_conteudo", evento)
 
-    # Obter dados do cache
-    conteudo = redis_client.hgetall(f"conteudo:{conteudo_id}")
-
-    # Renovar expiração (12 horas)
-    redis_client.expire(f"conteudo:{conteudo_id}", 60 * 60 * 12)
-
-    # Atualizar timestamp de último acesso
-    redis_client.hset(
-        f"conteudo:{conteudo_id}", "ultimo_acesso", datetime.utcnow().isoformat()
-    )
-
-    # Incrementar contador de acessos
-    redis_client.hincrby(f"conteudo:{conteudo_id}", "acessos", 1)
-
-    return conteudo
+    return {
+        "mensagem": "Solicitação de cache de conteúdo enviada (Redis)",
+        "conteudo_id": conteudo_id,
+        "correlation_id": correlation_id,
+        "status_url": f"/status/{correlation_id}",
+    }
 
 
 # Endpoint para fins de teste/debug
@@ -751,8 +588,6 @@ def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "kafka_connected": producer is not None,
-        "mongo_connected": mongo_db is not None,
-        "redis_connected": redis_client is not None,
     }
 
 
