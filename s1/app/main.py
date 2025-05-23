@@ -23,7 +23,7 @@ app = FastAPI(
 # Configuração de CORS para permitir acesso do dashboard
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Em produção, especifique os domínios permitidos
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -166,11 +166,15 @@ async def processar_evento(evento, pg_conn, mongo_db, redis_conn, producer):
 
         # Se ainda não foi processado, tentar com Redis
         if redis_conn is not None:
+            logger.info(f"🔴 Tentando processar {tipo} com Redis Handler...")
             result = await redis_handler.processar_evento_redis(
-                redis_conn, evento, producer
+                redis_conn, evento, producer, pg_conn
             )
             if result is not None:
+                logger.info(f"✅ Evento {tipo} processado pelo Redis")
                 return result
+            else:
+                logger.warning(f"⚠️ Redis Handler retornou None para {tipo}")
 
         # Se nenhum handler processou o evento
         logger.warning(f"⚠️ Evento não reconhecido ou não suportado: {tipo}")
