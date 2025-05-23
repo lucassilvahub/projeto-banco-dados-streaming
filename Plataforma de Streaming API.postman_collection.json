@@ -1,0 +1,473 @@
+{
+	"info": {
+		"_postman_id": "d8f2a1c2-01bb-444f-bc1b-d5fa9da71e39",
+		"name": "Plataforma de Streaming API",
+		"description": "Coleção de endpoints para a Plataforma de Streaming com Polyglot Persistence",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "14303882",
+		"_collection_link": "https://lucas1-9250.postman.co/workspace/Projetos-FEI~a554a6b7-0b1e-4fc1-9118-8d25f20d4028/collection/14303882-d8f2a1c2-01bb-444f-bc1b-d5fa9da71e39?action=share&source=collection_link&creator=14303882"
+	},
+	"item": [
+		{
+			"name": "Endpoints de Status",
+			"item": [
+				{
+					"name": "Verificar API Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								""
+							]
+						},
+						"description": "Verifica se a API está no ar"
+					},
+					"response": []
+				},
+				{
+					"name": "Verificar Saúde do Serviço",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/health",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"health"
+							]
+						},
+						"description": "Verifica o status de saúde da API"
+					},
+					"response": []
+				},
+				{
+					"name": "Verificar Status de Operação",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/status/{{correlation_id}}",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"status",
+								"{{correlation_id}}"
+							]
+						},
+						"description": "Verifica o status de uma operação pelo correlation_id"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints para verificação de status da plataforma"
+		},
+		{
+			"name": "PostgreSQL - Usuários",
+			"item": [
+				{
+					"name": "Criar Usuário",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/usuarios",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"usuarios"
+							]
+						},
+						"description": "Cria um novo usuário no sistema (dados gerados automaticamente)"
+					},
+					"response": []
+				},
+				{
+					"name": "Criar Assinatura para Usuário",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/usuarios/6067/assinatura",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"usuarios",
+								"6067",
+								"assinatura"
+							]
+						},
+						"description": "Cria uma assinatura para o usuário com o ID especificado"
+					},
+					"response": []
+				},
+				{
+					"name": "Registrar Pagamento",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/usuarios/6067/pagamento",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"usuarios",
+								"6067",
+								"pagamento"
+							]
+						},
+						"description": "Registra um pagamento para o usuário com o ID especificado"
+					},
+					"response": []
+				},
+				{
+					"name": "Atualizar Configurações",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/usuarios/6067/config",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"usuarios",
+								"6067",
+								"config"
+							]
+						},
+						"description": "Atualiza as configurações do usuário com o ID especificado"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints relacionados a usuários (PostgreSQL)"
+		},
+		{
+			"name": "MongoDB - Histórico e Recomendações",
+			"item": [
+				{
+					"name": "Registrar Visualização",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/historico-visualizacao?user_id=8013&conteudo_id=1234&titulo=Aventuras Incríveis&tipo=filme&tempo_assistido=3500&posicao=75",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"historico-visualizacao"
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "8013"
+								},
+								{
+									"key": "conteudo_id",
+									"value": "1234"
+								},
+								{
+									"key": "titulo",
+									"value": "Aventuras Incríveis"
+								},
+								{
+									"key": "tipo",
+									"value": "filme"
+								},
+								{
+									"key": "tempo_assistido",
+									"value": "3500"
+								},
+								{
+									"key": "posicao",
+									"value": "75"
+								}
+							]
+						},
+						"description": "Registra uma visualização de conteúdo no histórico do usuário"
+					},
+					"response": []
+				},
+				{
+					"name": "Obter Histórico de Visualização",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/historico-visualizacao/4172?tipo=filme&limit=10",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"historico-visualizacao",
+								"4172"
+							],
+							"query": [
+								{
+									"key": "tipo",
+									"value": "filme"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Obtém o histórico de visualização do usuário"
+					},
+					"response": []
+				},
+				{
+					"name": "Obter Histórico de Visualização Copy",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/status/5cf1a443-7ee2-45f8-8f90-3d8b3a524d2a",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"status",
+								"5cf1a443-7ee2-45f8-8f90-3d8b3a524d2a"
+							]
+						},
+						"description": "Obtém o histórico de visualização do usuário"
+					},
+					"response": []
+				},
+				{
+					"name": "Gerar Recomendações",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/recomendacoes/gerar?user_id=4172",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"recomendacoes",
+								"gerar"
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "4172"
+								}
+							]
+						},
+						"description": "Gera recomendações para o usuário baseadas no histórico"
+					},
+					"response": []
+				},
+				{
+					"name": "Obter Recomendações",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/recomendacoes/6881",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"recomendacoes",
+								"6881"
+							]
+						},
+						"description": "Obtém as recomendações geradas para o usuário"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints relacionados ao histórico de visualização e recomendações (MongoDB)"
+		},
+		{
+			"name": "Redis - Sessões e Cache",
+			"item": [
+				{
+					"name": "Cache conteúdo",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/cache/conteudo/5001",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"cache",
+								"conteudo",
+								"5001"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Pegar cache conteúdo",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/cache/conteudo/5001",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"cache",
+								"conteudo",
+								"5001"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Pegar cache conteúdo",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/cache/conteudo/5001",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"cache",
+								"conteudo",
+								"5001"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints relacionados a sessões e cache (Redis)"
+		},
+		{
+			"name": "Pegar resultado da requisição",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/status/{{correlation_id}}",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"status",
+						"{{correlation_id}}"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Capturar correlation_id quando criamos um usuário ou outras operações",
+					"if (pm.response.code === 200) {",
+					"    const jsonData = pm.response.json();",
+					"    ",
+					"    // Captura correlation_id",
+					"    if (jsonData.correlation_id) {",
+					"        pm.environment.set(\"correlation_id\", jsonData.correlation_id);",
+					"        console.log(\"correlation_id salvo: \" + jsonData.correlation_id);",
+					"    }",
+					"    ",
+					"    // Captura session_id",
+					"    if (jsonData.session_id) {",
+					"        pm.environment.set(\"session_id\", jsonData.session_id);",
+					"        console.log(\"session_id salvo: \" + jsonData.session_id);",
+					"    }",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "user_id",
+			"value": "4575"
+		},
+		{
+			"key": "correlation_id",
+			"value": ""
+		},
+		{
+			"key": "session_id",
+			"value": ""
+		}
+	]
+}
