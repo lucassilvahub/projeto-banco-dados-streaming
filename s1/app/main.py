@@ -324,8 +324,6 @@ def registrar_visualizacao(
 ):
     """
     Registra um histórico de visualização de conteúdo via Kafka para MongoDB.
-    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → MongoDB
-
     (MongoDB)
     """
     # Gerar dados fake se não fornecidos
@@ -368,8 +366,6 @@ def obter_historico_visualizacao(
 ):
     """
     Recupera o histórico de visualização de um usuário via Kafka para MongoDB.
-    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → MongoDB
-
     (MongoDB)
     """
     evento = {
@@ -392,8 +388,6 @@ def obter_historico_visualizacao(
 def gerar_recomendacoes(user_id: int):
     """
     Gera recomendações para um usuário via Kafka para MongoDB.
-    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → MongoDB
-
     (MongoDB)
     """
     evento = {
@@ -413,8 +407,6 @@ def gerar_recomendacoes(user_id: int):
 def obter_recomendacoes(user_id: int):
     """
     Recupera as recomendações geradas para um usuário via Kafka para MongoDB.
-    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → MongoDB
-
     (MongoDB)
     """
     evento = {
@@ -443,7 +435,6 @@ def criar_sessao(
 ):
     """
     Cria uma nova sessão de usuário via Kafka para Redis.
-    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → Redis
 
     (Redis)
     """
@@ -473,7 +464,6 @@ def criar_sessao(
 def atualizar_atividade_sessao(session_id: str):
     """
     Atualiza o timestamp de última atividade para uma sessão via Kafka para Redis.
-    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → Redis
 
     (Redis)
     """
@@ -495,7 +485,6 @@ def atualizar_atividade_sessao(session_id: str):
 def encerrar_sessao(session_id: str):
     """
     Encerra uma sessão de usuário via Kafka para Redis.
-    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → Redis
 
     (Redis)
     """
@@ -517,7 +506,6 @@ def encerrar_sessao(session_id: str):
 def listar_sessoes_usuario(user_id: int, ativas_apenas: bool = True):
     """
     Lista todas as sessões de um usuário via Kafka para Redis.
-    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → Redis
 
     (Redis)
     """
@@ -539,7 +527,6 @@ def listar_sessoes_usuario(user_id: int, ativas_apenas: bool = True):
 def cache_conteudo(conteudo_id: int):
     """
     Cria ou atualiza informações de conteúdo em cache via Kafka para Redis.
-    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → Redis
 
     (Redis)
     """
@@ -561,7 +548,6 @@ def cache_conteudo(conteudo_id: int):
 def obter_cache_conteudo(conteudo_id: int):
     """
     Recupera informações de conteúdo do cache via Kafka para Redis.
-    CORRIGIDO: Agora usa o fluxo S1 → Kafka → S2 → Redis
 
     (Redis)
     """
