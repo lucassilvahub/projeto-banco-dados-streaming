@@ -8,203 +8,351 @@ Este projeto implementa uma plataforma de streaming moderna com arquitetura orie
 
 O sistema é composto por 3 serviços principais e um dashboard, todos containerizados via Docker:
 
-![Captura de tela 2025-05-09 201754](https://github.com/user-attachments/assets/7eda8a42-e30a-4ff3-be1a-72a2d119a746)
+![Arquitetura do Sistema](https://github.com/user-attachments/assets/7eda8a42-e30a-4ff3-be1a-72a2d119a746)
 
 ### Serviços
 
-1. **S1 (API)**: Serviço de API RESTful desenvolvido com FastAPI, responsável por:
-   - Receber requisições HTTP
-   - Gerar eventos para o Kafka
-   - Acompanhar o status das operações via correlation_id
-   - Expor endpoints para gerenciamento de usuários, assinaturas e pagamentos
+**S1 (API Gateway)** - Porta: `8000`
+- Serviço de API RESTful desenvolvido com FastAPI
+- Recebe requisições HTTP e gera eventos para o Kafka
+- Rastreia operações via correlation_id
+- Expõe documentação interativa via Swagger UI
 
-2. **S2 (Processador)**: Serviço de processamento de eventos, responsável por:
-   - Consumir eventos do Kafka
-   - Persistir os dados no PostgreSQL
-   - Processar operações de negócio
-   - Enviar respostas via Kafka
+**S2 (Processador de Eventos)** - Consumidor Kafka
+- Consome eventos do Kafka e processa regras de negócio
+- Persiste dados nos bancos PostgreSQL, MongoDB e Redis
+- Envia respostas assíncronas via Kafka
+- Implementa validação de integridade entre bancos
 
-3. **S3 (Monitor)**: Serviço de monitoramento e logging, responsável por:
-   - Consumir eventos de todos os tópicos do Kafka
-   - Armazenar logs no Elasticsearch
-   - Monitorar fluxos de requisições e respostas
-   - Fornecer fallback para logs em arquivo quando Elasticsearch não estiver disponível
+**S3 (Monitor de Sistema)** - Observabilidade
+- Monitora todos os eventos do sistema
+- Armazena logs estruturados no Elasticsearch
+- Fornece fallback para logs em arquivo
+- Rastreia fluxos de requisição-resposta
 
-4. **Dashboard**: Interface web simples para visualização e acesso a todos os componentes da plataforma
+**Dashboard** - Porta: `8089`
+- Interface web centralizada para acesso a todos os componentes
+- Links diretos para administração dos bancos de dados
+- Documentação dos endpoints disponíveis
 
-### Bancos de Dados
+### Bancos de Dados (Polyglot Persistence)
 
-O sistema utiliza persistência poliglota:
+| Banco | Porta | Uso | Dados Armazenados |
+|-------|-------|-----|-------------------|
+| **PostgreSQL** | 5432 | OLTP | Usuários, assinaturas, pagamentos, preferências |
+| **MongoDB** | 27017 | NoSQL | Histórico de visualização, recomendações |
+| **Redis** | 6379 | Cache | Sessões, cache de conteúdo |
+| **Elasticsearch** | 9200 | Logs | Logs estruturados, métricas de sistema |
 
-- **PostgreSQL**: Armazena dados relacionais de usuários, assinaturas e pagamentos
-- **MongoDB**: Disponibilizado para dados não estruturados (não utilizado na versão atual)
-- **Redis**: Disponibilizado para caching (não utilizado na versão atual)
-- **Elasticsearch**: Armazena logs de sistema para análise e monitoramento
+### Mensageria
 
-### Ferramentas de Administração
-
-- **Adminer**: Administração do PostgreSQL
-- **Kafka UI**: Visualização e administração dos tópicos Kafka
-- **Kibana**: Visualização e análise dos logs no Elasticsearch
-
-### Fluxo de Dados
-
-A comunicação entre os serviços segue o padrão 
+**Apache Kafka** - Porta: `9092`
+- **Tópicos:**
+  - `user_events`: Eventos de entrada (requisições)
+  - `response_events`: Eventos de saída (respostas)
+- **Padrão:** Request-Response assíncrono com correlation_id
 
 ## 🚀 Como Executar
 
 ### Pré-requisitos
 
-- Docker
-- Docker Compose
-- Python 3.x (para o script de inicialização)
+- [Docker](https://docs.docker.com/get-docker/) 20.x ou superior
+- [Docker Compose](https://docs.docker.com/compose/install/) 2.x ou superior
+- [Python](https://www.python.org/downloads/) 3.8+ (para o script de inicialização)
 
-### Passos de Inicialização
+### Execução Rápida
 
-1. Clone o repositório:
+1. **Clone o repositório:**
 ```bash
 git clone [URL_DO_REPOSITORIO]
-cd [NOME_DO_DIRETORIO]
+cd plataforma-streaming
 ```
 
-2. Execute o script de inicialização:
+2. **Execute o script de inicialização:**
 ```bash
 python start.py
 ```
 
-O script `start.py` vai:
-- Verificar se Docker e Docker Compose estão instalados
-- Verificar e criar a estrutura de diretórios necessária
-- Parar os containers existentes (se houver)
-- Iniciar os containers via Docker Compose
-- Abrir o dashboard no navegador
+**O script automaticamente:**
+- ✅ Verifica se Docker e Docker Compose estão instalados
+- 📁 Cria a estrutura de diretórios necessária
+- 🛑 Para containers existentes (limpeza)
+- 🚀 Inicia todos os serviços via Docker Compose
+- 🌐 Abre o dashboard no navegador (http://localhost:8089)
 
-3. Após a inicialização, o dashboard estará disponível em:
-```
-http://localhost:8089
-```
+3. **Aguarde a inicialização completa** (aproximadamente 30-45 segundos)
 
-### Portas Utilizadas
+### Execução Manual (Alternativa)
 
-- **8000**: API principal (S1)
-- **8089**: Dashboard
-- **8080**: Kafka UI
-- **8081**: Adminer (Administração PostgreSQL)
-- **5601**: Kibana
-- **9200**: Elasticsearch
-- **5432**: PostgreSQL
-- **27017**: MongoDB
-- **6379**: Redis
+```bash
+# Parar containers existentes
+docker-compose down
 
-## 🔧 Estrutura do Projeto
+# Iniciar todos os serviços
+docker-compose up -d
 
-```
-.
-├── .env                  # Variáveis de ambiente
-├── .gitignore            # Arquivos ignorados pelo git
-├── docker-compose.yaml   # Configuração dos containers Docker
-├── start.py              # Script de inicialização
-├── s1/                   # Serviço API (FastAPI)
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── app/
-│       └── main.py
-├── s2/                   # Serviço Processador
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── app/
-│       └── main.py
-├── s3/                   # Serviço Monitor
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── app/
-│       └── main.py
-└── dashboard/            # Interface Web
-    └── html/
-        ├── index.html
-        └── style.css
+# Visualizar logs em tempo real
+docker-compose logs -f
 ```
 
-## 📝 Como Testar
+## 🌐 Acesso aos Serviços
 
-1. **Acessar o Dashboard:**
-   - Abra http://localhost:8089 no navegador
-   - Use os links para navegar entre os diferentes componentes
+### Interface Principal
+- **🏠 Dashboard:** http://localhost:8089 (Ponto de entrada principal)
 
-2. **Testar a API (Swagger UI):**
-   - Acesse http://localhost:8000/docs
-   - Utilize a documentação interativa para testar os endpoints
+### APIs e Documentação
+- **📡 API Principal:** http://localhost:8000
+- **📖 Swagger UI:** http://localhost:8000/docs (Documentação interativa)
+- **🔍 Health Check:** http://localhost:8000/health
 
-3. **Endpoints Principais:**
-   - `POST /usuarios` - Criar um novo usuário
-   - `POST /usuarios/{id}/assinatura` - Criar uma assinatura para um usuário
-   - `POST /usuarios/{id}/pagamento` - Registrar um pagamento para um usuário
-   - `POST /usuarios/{id}/config` - Atualizar configurações de um usuário
-   - `GET /status/{correlation_id}` - Verificar o status de uma operação
-   - `GET /health` - Verificar a saúde do serviço
+### Administração de Bancos de Dados
 
-4. **Visualizar Logs:**
-   - Use o Kibana em http://localhost:5601 para visualizar os logs no Elasticsearch
-   - Configure um index pattern para "system_logs" na primeira vez
+| Serviço | URL | Usuário | Senha | Descrição |
+|---------|-----|---------|-------|-----------|
+| **PostgreSQL (Adminer)** | http://localhost:8081 | `user` | `password` | Interface web para PostgreSQL |
+| **MongoDB (Mongo Express)** | http://localhost:8082 | `admin` | `admin` | Interface web para MongoDB |
+| **Redis (Commander)** | http://localhost:8083 | - | - | Interface web para Redis |
+| **Elasticsearch (Kibana)** | http://localhost:5601 | - | - | Análise de logs e métricas |
 
-5. **Monitorar Tópicos Kafka:**
-   - Acesse http://localhost:8080 para visualizar os tópicos e mensagens no Kafka
+### Ferramentas de Monitoramento
+- **📊 Kafka UI:** http://localhost:8080 (Tópicos e mensagens)
+- **📈 Kibana:** http://localhost:5601 (Logs e dashboards)
 
-## 📊 Tópicos Kafka
+## 🔧 Testando a API
 
-- **user_events**: Eventos relacionados aos usuários (criação, atualização, etc.)
-- **response_events**: Respostas do processamento de eventos
+### Opção 1: Postman Collection (Recomendado)
 
-## 🗃️ Tabelas PostgreSQL
+O projeto inclui uma **collection completa do Postman** com todos os endpoints configurados:
 
-- **usuarios**: Armazena informações dos usuários
-- **assinaturas**: Armazena dados de assinaturas
-- **pagamentos**: Registra pagamentos realizados
-- **preferencias**: Armazena preferências e configurações dos usuários
+1. **Importe a collection:** `Plataforma de Streaming API.postman_collection.json`
+2. **Configure o environment** (opcional):
+   - Base URL: `http://localhost:8000`
+   - User ID: `1234` (exemplo)
+3. **Execute os requests** organizados por categoria
 
-## 🧰 Tecnologias Utilizadas
+**📁 Estrutura da Collection:**
+- 🔍 **Status Endpoints:** Verificação de saúde e status
+- 👥 **PostgreSQL - Usuários:** CRUD de usuários, assinaturas, pagamentos
+- 📺 **MongoDB - Histórico:** Visualizações e recomendações
+- ⚡ **Redis - Cache:** Sessões e cache de conteúdo
 
-- **Backend**: Python 3.11
-- **API**: FastAPI
-- **Processamento Assíncrono**: asyncio, aiokafka
-- **Banco de Dados**: PostgreSQL, MongoDB, Redis, Elasticsearch
-- **Mensageria**: Kafka
-- **Frontend**: HTML, CSS
-- **Containerização**: Docker, Docker Compose
-- **Monitoramento**: Kibana, Kafka UI, Adminer
+### Opção 2: Swagger UI
 
-## 📈 Escalabilidade e Melhorias Futuras
+Acesse http://localhost:8000/docs para documentação interativa com exemplos em tempo real.
 
-O sistema foi projetado para ser escalável:
+### Opção 3: cURL (Exemplos)
 
-1. **Escalabilidade Horizontal**:
-   - Todos os serviços podem ser replicados para aumentar a capacidade
-   - Kafka gerencia o balanceamento das mensagens entre instâncias
+```bash
+# Criar usuário
+curl -X POST "http://localhost:8000/usuarios"
 
-2. **Possíveis Melhorias**:
-   - Implementar autenticação e autorização
-   - Adicionar monitoramento com Prometheus e Grafana
-   - Expandir o uso dos demais bancos de dados (MongoDB e Redis)
-   - Implementar testes automatizados
-   - Adicionar CI/CD pipeline
-   - Implementar serviço de recomendação baseado em histórico de visualização
+# Criar assinatura
+curl -X POST "http://localhost:8000/usuarios/1234/assinatura"
 
-## 🧩 Detalhes Técnicos
+# Verificar status da operação
+curl "http://localhost:8000/status/{correlation_id}"
 
-### Comunicação Assíncrona
+# Registrar visualização
+curl -X POST "http://localhost:8000/historico-visualizacao?user_id=1234&conteudo_id=5678"
 
-O sistema utiliza o padrão de correlation_id para rastrear o fluxo de mensagens:
+# Cache de conteúdo
+curl -X POST "http://localhost:8000/cache/conteudo/1001"
+```
 
-1. S1 gera um UUID único (correlation_id) para cada operação
-2. O correlation_id é enviado junto com o evento para o Kafka
-3. S2 processa o evento e envia uma resposta com o mesmo correlation_id
-4. S1 armazena as respostas em um dicionário indexado pelo correlation_id
-5. Clientes podem consultar o status via endpoint `/status/{correlation_id}`
+## 📊 Principais Endpoints
 
-### Resiliência
+### PostgreSQL (Dados Relacionais)
+- `POST /usuarios` - Criar usuário
+- `POST /usuarios/{id}/assinatura` - Criar assinatura
+- `POST /usuarios/{id}/pagamento` - Registrar pagamento
+- `POST /usuarios/{id}/config` - Atualizar preferências
 
-O sistema foi projetado para ser resiliente:
+### MongoDB (Dados Não-Estruturados)
+- `POST /historico-visualizacao` - Registrar visualização
+- `GET /historico-visualizacao/{user_id}` - Obter histórico
+- `POST /recomendacoes/gerar` - Gerar recomendações
+- `GET /recomendacoes/{user_id}` - Obter recomendações
 
-- **Reconnection**: Serviços tentam reconectar automaticamente ao Kafka e PostgreSQL
-- **Fallback para Logs**: S3 usa um arquivo local como fallback quando Elasticsearch não está disponível
-- **Containers Resilientes**: Configuração `restart: on-failure` garante que os containers sejam reiniciados em caso de falha
+### Redis (Cache e Sessões)
+- `POST /cache/conteudo/{id}` - Cachear conteúdo
+- `GET /cache/conteudo/{id}` - Obter cache
+- `POST /sessoes` - Criar sessão
+- `GET /sessoes/usuario/{id}` - Listar sessões
+
+### Sistema
+- `GET /status/{correlation_id}` - Status da operação
+- `GET /health` - Saúde do serviço
+
+## 🗃️ Esquema dos Bancos de Dados
+
+### PostgreSQL - Tabelas
+
+```sql
+-- Usuários principais
+usuarios (id, user_id, nome, email, cpf, data_criacao)
+
+-- Planos de assinatura
+assinaturas (id, user_id, plano, inicio, fim, status)
+
+-- Histórico de pagamentos
+pagamentos (id, user_id, valor, forma_pagamento, status, data_pagamento)
+
+-- Preferências do usuário
+preferencias (id, user_id, idioma, notificacoes, tema, data_atualizacao)
+```
+
+### MongoDB - Coleções
+
+```javascript
+// Histórico de visualização
+historico_visualizacao {
+  user_id: Number,
+  conteudo_id: Number,
+  titulo: String,
+  tipo: String, // "filme", "série", "documentário"
+  tempo_assistido: Number,
+  posicao: Number, // percentual assistido
+  data: Date,
+  concluido: Boolean
+}
+
+// Sistema de recomendações
+recomendacoes {
+  user_id: Number,
+  data_geracao: Date,
+  itens: Array // lista de conteúdos recomendados
+}
+```
+
+### Redis - Estruturas de Dados
+
+```redis
+# Cache de conteúdo
+conteudo:{id} -> Hash com dados do conteúdo
+
+# Contadores globais
+app:stats:cache_hits -> Counter
+```
+
+### Características do Sistema
+
+- **🔄 Comunicação Assíncrona:** Todas as operações retornam imediatamente um `correlation_id`
+- **📍 Rastreabilidade:** Cada operação pode ser rastreada end-to-end
+- **🛡️ Resiliência:** Sistema continua funcionando mesmo com falhas parciais
+- **📊 Observabilidade:** Todos os eventos são logados e monitorados
+- **⚡ Performance:** Operações não bloqueantes
+
+## 🛠️ Desenvolvimento e Debug
+
+### Logs dos Serviços
+
+```bash
+# Ver logs de todos os serviços
+docker-compose logs -f
+
+# Logs específicos por serviço
+docker-compose logs -f s1  # API
+docker-compose logs -f s2  # Processor
+docker-compose logs -f s3  # Monitor
+```
+
+### Restart de Serviços
+
+```bash
+# Reiniciar serviço específico
+docker-compose restart s1
+
+# Rebuild e restart
+docker-compose up -d --build s1
+```
+
+### Variáveis de Ambiente
+
+As configurações estão no arquivo `.env`:
+
+```bash
+# PostgreSQL
+POSTGRES_USER=user
+POSTGRES_PASSWORD=password
+POSTGRES_DB=streaming_db
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+
+# Kafka
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+
+# Elasticsearch
+ELASTICSEARCH_HOST=elasticsearch:9200
+
+# Logs
+LOG_LEVEL=INFO
+```
+
+## 🔍 Monitoramento e Troubleshooting
+
+### Health Checks
+
+Todos os serviços possuem health checks configurados:
+
+```bash
+# Status geral do sistema
+curl http://localhost:8000/health
+
+# Status específico do S2
+curl http://localhost:8000/health  # (via S2)
+```
+
+### Verificação de Conectividade
+
+```bash
+# Verificar se Kafka está funcionando
+docker exec -it kafka kafka-topics.sh --bootstrap-server localhost:9092 --list
+
+# Verificar PostgreSQL
+docker exec -it postgres psql -U user -d streaming_db -c "SELECT version();"
+
+# Verificar MongoDB
+docker exec -it mongo mongosh --eval "db.adminCommand('ping')"
+
+# Verificar Redis
+docker exec -it redis redis-cli ping
+
+# Verificar Elasticsearch
+curl http://localhost:9200/_cluster/health
+```
+
+### Análise de Logs no Kibana
+
+1. Acesse http://localhost:5601
+2. Configure o index pattern: `api_*`
+3. Explore os logs por:
+   - **transaction_id**: Rastrear operações específicas
+   - **event_type**: Filtrar por tipo de evento
+   - **status**: Ver sucessos/erros
+   - **timestamp**: Análise temporal
+
+## 🧩 Tecnologias Utilizadas
+
+### Backend
+- **🐍 Python 3.11** - Linguagem principal
+- **⚡ FastAPI** - Framework web moderno e rápido
+- **🔄 asyncio** - Programação assíncrona nativa
+- **📨 aiokafka** - Cliente Kafka assíncrono
+
+### Bancos de Dados
+- **🐘 PostgreSQL 15** - Banco relacional ACID
+- **🍃 MongoDB 7** - Banco de documentos NoSQL
+- **🚀 Redis 7** - Cache em memória
+- **🔍 Elasticsearch 7.17** - Motor de busca e análise
+
+### Infraestrutura
+- **🐳 Docker & Docker Compose** - Containerização
+- **📡 Apache Kafka** - Message Streaming Platform
+- **🌐 Nginx** - Web server para dashboard
+- **📊 Kibana** - Visualização de dados
+
+### Ferramentas de Desenvolvimento
+- **📖 Swagger/OpenAPI** - Documentação de API
+- **🔧 Postman** - Testes de API
+- **🎨 Faker** - Geração de dados fake
+- **📝 Adminer** - Administração de PostgreSQL
