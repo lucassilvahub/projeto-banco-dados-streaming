@@ -176,8 +176,6 @@ curl -X POST "http://localhost:8000/cache/conteudo/1001"
 ### Redis (Cache e Sessões)
 - `POST /cache/conteudo/{id}` - Cachear conteúdo
 - `GET /cache/conteudo/{id}` - Obter cache
-- `POST /sessoes` - Criar sessão
-- `GET /sessoes/usuario/{id}` - Listar sessões
 
 ### Sistema
 - `GET /status/{correlation_id}` - Status da operação
